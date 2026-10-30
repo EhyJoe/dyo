@@ -1,0 +1,298 @@
+/* ============================================================
+   Sign in · Create account
+   ============================================================ */
+
+.auth-page {
+  --maroon: #800000;
+  --maroon-dark: #5c0000;
+  --gold: #ffd700;
+  --ink: #241a1a;
+  --muted: #6b5f5f;
+  --line: rgba(255, 255, 255, 0.22);
+
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 18px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255, 215, 0, 0.14), transparent 45%),
+    linear-gradient(150deg, #5c0000, #2b0000);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 620px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  padding: 38px 34px;
+  color: #fff;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+.auth-card--narrow { max-width: 400px; }
+
+/* The logo carries the identity here, so the wordmark above the heading
+   is gone — two of them side by side just competed with each other. */
+.auth-logo {
+  display: block;
+  width: 82px;
+  height: 82px;
+  object-fit: contain;
+  border-radius: 0;
+  margin: 0 auto 20px;
+}
+
+.auth-card h1 { text-align: center; }
+.auth-card .auth-sub { margin-inline: auto; text-align: center; }
+
+.auth-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin: 0 0 8px;
+}
+
+.auth-card h1 {
+  margin: 0 0 8px;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+.auth-sub {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  margin: 0 0 24px;
+  max-width: 46ch;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.auth-card input,
+.auth-card select {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ink);
+  font: inherit;
+}
+.auth-card > input,
+.auth-card > .password-field {
+  margin-top: 12px;
+}
+.auth-card > .password-field + .password-field {
+  margin-top: 14px;
+}
+.auth-card .password-field {
+  position: relative;
+  min-width: 0;
+}
+.auth-card .password-field > input {
+  padding-right: 48px;
+}
+.auth-card .password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #71351f;
+  cursor: pointer;
+}
+.auth-card .password-toggle:hover { background: #f5eae3; }
+.auth-card .password-toggle:focus-visible {
+  outline: 2px solid #a7673b;
+  outline-offset: 1px;
+}
+.auth-card .password-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.auth-card .password-toggle:disabled { cursor: not-allowed; opacity: 0.55; }
+.auth-card input::placeholder { color: #8b8080; }
+.auth-card input:focus-visible,
+.auth-card select:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* the standalone address field on the sign-up form */
+
+.auth-card button[type="submit"] {
+  width: 100%;
+  margin-top: 22px;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  background: var(--gold);
+  color: var(--maroon-dark);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.auth-card button[type="submit"]:hover { background: #f0c800; }
+.auth-card button[type="submit"]:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.auth-card .linkish {
+  display: block;
+  margin: 14px auto 0;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: underline;
+  font: inherit;
+  cursor: pointer;
+}
+
+.auth-error {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: #fff4f1 !important;
+  border: 1px solid #bd4a31 !important;
+  border-left-width: 5px !important;
+  color: #682513 !important;
+  padding: 13px 15px;
+  border-radius: 9px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.55;
+  margin: 16px 0 0;
+}
+
+.auth-alt {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.92rem;
+  margin: 20px 0 0;
+}
+.auth-alt a { color: var(--gold); font-weight: 600; }
+
+@media (max-width: 560px) {
+  .auth-card { padding: 28px 20px; }
+  .auth-logo { width: 66px; height: 66px; margin-bottom: 16px; }
+  .auth-card h1 { font-size: 1.55rem; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
+
+
+/* Signup profile photo picker */
+.signup-photo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.signup-photo-preview {
+  width: 92px; height: 92px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffd700;
+}
+.signup-photo-blank {
+  width: 92px; height: 92px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(255,255,255,0.08);
+  border: 2px dashed rgba(255,255,255,0.4);
+  color: rgba(255,255,255,0.7);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.signup-photo-btn {
+  cursor: pointer;
+  color: #ffd700;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+
+/* Prominent signup photo upload */
+.signup-photo-label {
+  display: block; font-weight: 700; font-size: 0.95rem;
+  color: #5c0000; margin: 6px 0 2px;
+}
+.signup-photo-hint {
+  font-size: 0.8rem; color: #6b5f5f; margin: 0 0 10px;
+}
+.signup-photo-blank {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; color: #9a8f8f;
+  border: 2px dashed #d9c9c9; border-radius: 12px;
+  padding: 18px; background: #faf5f5;
+}
+.signup-photo-blank span { font-size: 0.85rem; font-weight: 600; }
+
+
+/* Signup field label + hint (for date of birth guidance) */
+.signup-field-label {
+  display: block; font-size: 0.82rem; font-weight: 600;
+  color: #5c0000; margin: 4px 0 2px;
+}
+.signup-field-hint {
+  display: block; font-weight: 400; color: #6b5f5f; font-size: 0.76rem; margin-top: 1px;
+}
+
+
+/* Signup photo upload — visible on the dark auth background */
+.signup-photo {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; margin: 4px auto 20px; text-align: center;
+}
+.signup-photo-label {
+  display: block;
+  width: 100%;
+  align-self: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+  text-align: center;
+}
+.signup-photo-hint {
+  color: rgba(255,255,255,0.7); font-size: 0.8rem; text-align: center;
+  max-width: 320px; margin: 0 auto;
+}
+.signup-photo-blank {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; width: 120px; height: 120px; border-radius: 50%;
+  border: 2px dashed rgba(255,255,255,0.55); color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.06);
+}
+.signup-photo-blank span { font-size: 0.8rem; font-weight: 600; }
+.signup-photo-preview {
+  width: 120px; height: 120px; border-radius: 50%; object-fit: cover;
+  border: 3px solid rgba(255,255,255,0.7);
+}
+.signup-photo-btn {
+  display: inline-block; cursor: pointer;
+  background: #fff; color: #7a0000; font-weight: 700; font-size: 0.9rem;
+  padding: 9px 20px; border-radius: 999px;
+}
+.signup-photo-btn:hover { background: #ffe9e9; }
+.signup-photo-optional { font-size: 0.82rem; font-weight: 400; color: rgba(255,255,255,0.72); }
+.signup-photo-input { display: none; }

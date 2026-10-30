@@ -1,0 +1,130 @@
+"use client";
+import { useEffect, useState } from "react";
+import { Link } from "@/lib/next-router";
+import { mongo } from "../lib/mongoClient";
+import { naira } from "../lib/currency";
+import { useCart } from "./Cartcontext";
+import SponsorItemButton from "./Sponsoritembutton";
+import Navbar from "./Navbar";
+import SiteFooter from "./Sitefooter";
+import "./Store.css";
+
+interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  price_naira: number;
+  images: string[];
+  product_variants: { id: string; label: string; stock: number }[];
+}
+
+export default function StorePage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [category, setCategory] = useState("All");
+  const [loading, setLoading] = useState(true);
+  const { count } = useCart();
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await mongo
+        .from("products")
+        .select("*, product_variants(id, label, stock)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      setProducts((data as Product[]) ?? []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const categories = ["All", ...Array.from(
+    new Set(products.map((p) => p.category).filter(Boolean) as string[]),
+  )];
+
+  const shown = category === "All"
+    ? products
+    : products.filter((p) => p.category === category);
+
+  const soldOut = (p: Product) =>
+    p.product_variants.length > 0 &&
+    p.product_variants.every((v) => v.stock <= 0);
+
+  return (
+    <div className="store">
+      <Navbar />
+
+      <header className="store-head">
+        <div>
+          <p className="store-eyebrow">Diocesan Youth Organization</p>
+          <h1>The store</h1>
+          <p className="store-sub">
+            Programme polos, wristbands and books. Pay online, collect at your
+            archdeaconry or have it delivered.
+          </p>
+        </div>
+        <Link to="/cart" className="store-cart"
+              aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}>
+          <span className="store-cart-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 3h2l2.2 10.4a1.6 1.6 0 0 0 1.6 1.3h7.9a1.6 1.6 0 0 0 1.6-1.2L20.5 6H5.2" />
+              <circle cx="9.5" cy="19" r="1.5" />
+              <circle cx="16.5" cy="19" r="1.5" />
+            </svg>
+            {count > 0 && <span className="store-cart-badge">{count}</span>}
+          </span>
+          <span className="store-cart-label">Cart</span>
+        </Link>
+      </header>
+
+      {categories.length > 2 && (
+        <nav className="store-filters">
+          {categories.map((c) => (
+            <button key={c}
+                    className={c === category ? "is-active" : ""}
+                    onClick={() => setCategory(c)}>
+              {c}
+            </button>
+          ))}
+        </nav>
+      )}
+
+      {loading ? (
+        <p className="store-status">Loading the shelves…</p>
+      ) : shown.length === 0 ? (
+        <div className="store-status store-empty-state">
+          <span className="store-empty-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3.5 4h2l2.1 11.2a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.2L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
+          </span>
+          <h2>Nothing on sale right now</h2>
+          <p>New items go up ahead of each programme. Check back soon.</p>
+        </div>
+      ) : (
+        <div className="store-grid">
+          {shown.map((p) => (
+            <div key={p.id} className="store-card">
+              {/* The image + name + price stay a link to the product page. */}
+              <Link to={`/store/${p.slug}`} className="store-card-link">
+                <div className="store-card-image">
+                  {p.images[0]
+                    ? <img src={p.images[0]} alt={p.name} loading="lazy" />
+                    : <div className="store-card-placeholder">{p.name.slice(0, 1)}</div>}
+                  {soldOut(p) && <span className="store-tag">Sold out</span>}
+                </div>
+                <h3>{p.name}</h3>
+                <p className="store-price">{naira(p.price_naira)}</p>
+              </Link>
+
+              {/* Sponsor button sits outside the link so it acts on its own. */}
+              <SponsorItemButton product={{ id: p.id, name: p.name, price_naira: p.price_naira }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <SiteFooter />
+    </div>
+  );
+}
+
+

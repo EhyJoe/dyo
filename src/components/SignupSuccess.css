@@ -1,0 +1,50 @@
+.signup-success-page {
+  --success-ink: #2d211c;
+  --success-muted: #796c64;
+  --success-clay: #87391f;
+  --success-gold: #d3a45d;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  gap: clamp(32px, 6vh, 64px);
+  padding: clamp(24px, 5vh, 48px) 0 0;
+  color: var(--success-ink);
+  background: radial-gradient(circle at 50% 36%, #fffdf9 0, #f7f0e7 48%, #efe4d6 100%);
+}
+.signup-success-card {
+  width: min(100%, 540px);
+  flex: 0 0 auto;
+  margin: 0 auto;
+  padding: clamp(30px, 7vw, 58px);
+  border: 1px solid rgba(135, 57, 31, .14);
+  border-radius: 28px;
+  background: rgba(255, 253, 249, .9);
+  box-shadow: 0 26px 75px rgba(71, 44, 26, .12);
+  text-align: center;
+  animation: signup-card-enter .65s cubic-bezier(.2,.8,.2,1) both;
+}
+.signup-success-page > .home-footer { flex: 0 0 auto; align-self: stretch; width: 100%; }
+.signup-success-logo { display: block; width: 62px; height: 62px; margin: 0 auto 22px; object-fit: contain; }
+.signup-success-icon { position: relative; display: grid; place-items: center; width: 92px; height: 92px; margin: 0 auto 20px; color: var(--success-clay); }
+.signup-success-check { width: 82px; height: 82px; overflow: visible; }
+.signup-success-ring { stroke: var(--success-gold); stroke-width: 2; stroke-dasharray: 176; stroke-dashoffset: 176; animation: signup-ring-draw .85s .15s ease-out forwards; }
+.signup-success-tick { stroke: var(--success-clay); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 44; stroke-dashoffset: 44; animation: signup-tick-draw .45s .8s ease-out forwards; }
+.signup-success-spark { position: absolute; color: var(--success-gold); animation: signup-spark-pop .7s .75s both; }
+.signup-success-spark--one { top: 2px; right: 2px; font-size: 18px; }
+.signup-success-spark--two { bottom: 8px; left: 0; font-size: 14px; animation-delay: 1s; }
+.signup-success-eyebrow { margin: 0 0 10px; color: var(--success-clay); font-size: .72rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+.signup-success-card h1 { margin: 0; font-family: Newsreader, Georgia, serif; font-size: clamp(2.2rem, 7vw, 3.3rem); font-weight: 500; letter-spacing: -.035em; line-height: 1.08; }
+.signup-success-copy { max-width: 38ch; margin: 16px auto 28px; color: var(--success-muted); font-size: 1rem; line-height: 1.65; }
+.signup-success-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 54px; padding: 0 23px; border-radius: 999px; color: #fffaf4; background: var(--success-clay); box-shadow: 0 8px 20px rgba(135, 57, 31, .2); font-weight: 650; text-decoration: none; transition: transform .2s ease, box-shadow .2s ease, background .2s ease; }
+.signup-success-button:hover { transform: translateY(-2px); background: #6f2e19; box-shadow: 0 12px 25px rgba(135, 57, 31, .25); }
+.signup-success-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.signup-success-button span { margin-left: 4px; font-size: 1.2rem; }
+.signup-success-footnote { margin: 19px 0 0; color: #978a80; font-size: .82rem; }
+@keyframes signup-card-enter { from { opacity: 0; transform: translateY(18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes signup-ring-draw { to { stroke-dashoffset: 0; } }
+@keyframes signup-tick-draw { to { stroke-dashoffset: 0; } }
+@keyframes signup-spark-pop { from { opacity: 0; transform: scale(.35) rotate(-25deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .signup-success-card, .signup-success-ring, .signup-success-tick, .signup-success-spark { animation-duration: .01ms; animation-delay: 0ms; } .signup-success-ring, .signup-success-tick { stroke-dashoffset: 0; } }
+@media (max-width: 520px) { .signup-success-page { padding: 24px 0 0; } .signup-success-card { width: calc(100% - 28px); border-radius: 22px; } }

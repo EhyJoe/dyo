@@ -1,0 +1,629 @@
+/* ============================================================
+   Global base — import this FIRST in app/layout.tsx, before any
+   component CSS:   import "./index.css";
+   ============================================================ */
+
+/* Tailwind v4. This line MUST stay at the very top of the file —
+   CSS @import rules are only valid before any other rule, so if it
+   sits lower down the browser silently drops it.
+
+   Your admin pages (AdminDashboard, AdminTags, AdminProgrammes,
+   AdminProducts, AdminOrders, AdminAnnouncements, AccountPage) are
+   written entirely in Tailwind classes. Without this they have no
+   layout at all — they don't degrade gracefully, they just stack. */
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&display=swap");
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;   /* stops iOS inflating text in landscape */
+}
+
+html, body, #__next {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img, video, svg, canvas { max-width: 100%; height: auto; }
+
+/* ------------------------------------------------------------
+   The 100vw trap
+
+   Several of the existing stylesheets use `width: 100vw` on page
+   containers, and HomePage.css has `width: 100%vw`, which is not
+   valid CSS and is dropped entirely.
+
+   `100vw` includes the vertical scrollbar. On any desktop browser
+   that reserves scrollbar space, `width: 100vw` is 15-17px wider
+   than the visible area, so every page scrolls sideways and the
+   layout looks broken at exactly the moment you resize to check
+   whether it's responsive.
+
+   Use `width: 100%`. These overrides neutralise the existing rules
+   without editing four files; delete them once those are cleaned up.
+------------------------------------------------------------ */
+
+.home-container,
+.registration-container,
+.payment-container,
+.donation-container,
+.carousel {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+/* ------------------------------------------------------------
+   Tap targets and inputs
+------------------------------------------------------------ */
+
+button, input, select, textarea { font-family: inherit; font-size: inherit; }
+
+/* iOS zooms the page whenever a focused input is under 16px. */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* Anything interactive should be comfortably thumb-sized. */
+button, a[role="button"], .pg-button, .product-add, .home-btn {
+  min-height: 44px;
+}
+
+/* Long words and URLs shouldn't force a page wider than the screen. */
+h1, h2, h3, p, li, td { overflow-wrap: break-word; }
+
+/* Tables are the usual cause of sideways scroll on admin screens.
+   Wrap them in <div className="table-scroll"> so only the table moves. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Warm ivory and terracotta theme from the YAYO reference */
+:root {
+  --theme-paper: #f6f1e8;
+  --theme-paper-soft: #fbf8f2;
+  --theme-ink: #2b2420;
+  --theme-muted: #766d64;
+  --theme-clay: #87391f;
+  --theme-clay-dark: #6e2d19;
+  --theme-gold: #cf8b2d;
+  --theme-line: #e6dccd;
+  --theme-white: #fffdf9;
+  color-scheme: light;
+}
+
+html, body {
+  background: var(--theme-paper);
+  color: var(--theme-ink);
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+button, input, select, textarea { font: inherit; }
+h1, h2, h3, h4, h5, h6 {
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
+  color: var(--theme-ink);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline-color: var(--theme-gold);
+}
+
+/* ============================================================
+   Unified site-wide visual system
+   Warm paper, ink, terracotta and muted brass. The page components keep
+   their existing structure and interactions; these overrides unify their
+   typography, surfaces and controls.
+   ============================================================ */
+
+:root {
+  --theme-paper: #f6f1e8;
+  --theme-paper-soft: #fbf8f2;
+  --theme-ink: #2b2420;
+  --theme-muted: #766d64;
+  --theme-clay: #87391f;
+  --theme-clay-dark: #6e2d19;
+  --theme-gold: #bd8133;
+  --theme-line: #e6dccd;
+  --theme-white: #fffdf9;
+  --theme-shadow: 0 12px 34px rgba(62, 43, 27, 0.08);
+}
+
+html, body {
+  background: var(--theme-paper);
+  color: var(--theme-ink);
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+}
+
+h1, h2, h3, h4,
+.auth-card h1, .content-head h1, .content-status h2,
+.account-head h1, .pg-list-head h1, .pg-detail h1,
+.store-head h1, .donate-hero h1, .donate-card h2,
+.rcpt-head h1, .a-head h1 {
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
+  color: var(--theme-ink);
+  letter-spacing: -0.035em;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline-color: var(--theme-gold);
+}
+
+/* Auth screens */
+.auth-page {
+  --maroon: var(--theme-clay) !important;
+  --maroon-dark: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  align-items: flex-start;
+  padding-top: clamp(30px, 7vh, 76px);
+  background:
+    radial-gradient(circle at 12% 20%, rgba(206, 139, 74, 0.13), transparent 31%),
+    var(--theme-paper) !important;
+  color: var(--theme-ink);
+}
+.auth-card {
+  color: var(--theme-ink) !important;
+  background: var(--theme-white) !important;
+  border: 1px solid var(--theme-line) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--theme-shadow) !important;
+  backdrop-filter: none !important;
+}
+.auth-card .auth-sub, .auth-alt, .auth-card .linkish { color: var(--theme-muted) !important; }
+.auth-alt a, .signup-photo-btn { color: var(--theme-clay) !important; }
+.auth-eyebrow, .signup-photo-label, .signup-field-label { color: var(--theme-clay) !important; }
+.auth-logo { border-radius: 0 !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; }
+.auth-card button[type="submit"] {
+  background: var(--theme-clay) !important;
+  color: white !important;
+  border-radius: 999px !important;
+}
+.auth-card button[type="submit"]:hover { background: var(--theme-clay-dark) !important; }
+.signup-photo-blank { background: var(--theme-paper-soft) !important; border-color: var(--theme-line) !important; }
+.auth-card .signup-photo { width: 100%; align-items: center; text-align: center; }
+.auth-card .signup-photo-label { display: block; width: 100%; margin-inline: auto; text-align: center !important; }
+.auth-card .signup-photo-hint { width: 100%; margin-inline: auto; color: var(--theme-muted) !important; text-align: center; }
+.auth-card .signup-photo-blank { color: var(--theme-muted) !important; }
+.auth-card .signup-photo-blank span { color: var(--theme-muted) !important; }
+.auth-card .signup-photo-optional { color: var(--theme-muted) !important; }
+.auth-card .signup-photo-btn { display: inline-flex; justify-content: center; align-items: center; text-align: center; }
+
+/* Store, products, checkout and receipts */
+.store, .product, .checkout, .receipt {
+  --maroon: var(--theme-clay) !important;
+  --maroon-dark: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  --paper: var(--theme-paper-soft) !important;
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+.store-head, .product-head, .checkout-head { border-color: var(--theme-line) !important; }
+.store-head h1, .product h1, .checkout h1, .receipt h1 { font-family: Newsreader, Georgia, serif !important; }
+.store-card, .product-card, .checkout-card, .receipt-card,
+.checkout-items, .checkout-summary, .product-panel {
+  border-color: var(--theme-line) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 26px rgba(62,43,27,.055);
+}
+.store button.product-add, .product button.product-add,
+.checkout button.product-add, .store .store-sponsor-btn,
+.product .store-sponsor-btn, .checkout .store-sponsor-btn,
+.receipt .rcpt-btn:not(.rcpt-btn--quiet) {
+  background: var(--theme-clay) !important;
+  border-color: var(--theme-clay) !important;
+  color: #fffaf3 !important;
+  border-radius: 999px !important;
+}
+.store button.product-add:hover, .product button.product-add:hover,
+.checkout button.product-add:hover { background: var(--theme-clay-dark) !important; }
+
+/* Programme listing and detail */
+.pg-list, .pg-detail, .pg-status, .pg-body-pay {
+  --maroon: var(--theme-clay) !important;
+  --maroon-dark: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  color: var(--theme-ink) !important;
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+.pg-list-head { border-color: var(--theme-clay) !important; }
+.pg-list-head h1, .pg-detail h1 { font-family: Newsreader, Georgia, serif !important; }
+.pg-card, .pg-panel, .pg-card-inner {
+  border-color: var(--theme-line) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(62,43,27,.06);
+}
+.pg-button:not(.pg-button--quiet) {
+  background: var(--theme-clay) !important;
+  border-color: var(--theme-clay) !important;
+  color: white !important;
+  border-radius: 999px !important;
+}
+.pg-button:not(.pg-button--quiet):hover { background: var(--theme-clay-dark) !important; }
+
+/* Giving */
+.donate {
+  --maroon: var(--theme-clay) !important;
+  --maroon-deep: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  background: var(--theme-paper) !important;
+  color: var(--theme-ink) !important;
+}
+.donate-hero {
+  background: radial-gradient(ellipse at 90% 10%, rgba(194,137,76,.14), transparent 30%), var(--theme-paper) !important;
+  color: var(--theme-ink) !important;
+  border-bottom: 1px solid var(--theme-line);
+}
+.donate-hero h1 { color: var(--theme-ink) !important; }
+.donate-lede { color: var(--theme-muted) !important; }
+.donate-eyebrow { color: var(--theme-clay) !important; }
+.donate-card, .donate-quote, .donate-other {
+  background: var(--theme-white) !important;
+  border: 1px solid var(--theme-line) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(62,43,27,.05);
+}
+.donate-submit { background: var(--theme-clay) !important; border-radius: 999px !important; }
+
+/* Gallery, blog and content pages */
+.content-page {
+  --maroon: var(--theme-clay) !important;
+  --maroon-deep: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  background: var(--theme-paper) !important;
+  color: var(--theme-ink) !important;
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+.content-head { border-color: var(--theme-clay) !important; }
+.content-head h1 { font-family: Newsreader, Georgia, serif !important; }
+.content-filters button.is-active { background: var(--theme-clay) !important; border-color: var(--theme-clay) !important; }
+.blog-card, .blog-lead, .content-card {
+  border-color: var(--theme-line) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 8px 24px rgba(62,43,27,.05);
+}
+
+.rcpt {
+  --maroon: var(--theme-clay) !important;
+  --maroon-deep: var(--theme-clay-dark) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+}
+.rcpt-card { border-color: var(--theme-line) !important; border-radius: 22px !important; box-shadow: var(--theme-shadow); }
+.rcpt-btn:not(.rcpt-btn--quiet) { background: var(--theme-clay) !important; border-color: var(--theme-clay) !important; }
+
+/* Account and registration forms */
+.account {
+  --maroon: var(--theme-clay) !important;
+  --gold: var(--theme-gold) !important;
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --line: var(--theme-line) !important;
+  background: var(--theme-paper) !important;
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+.account-head { border-color: var(--theme-clay) !important; }
+.account-head h1 { font-family: Newsreader, Georgia, serif !important; }
+.account-card { background: var(--theme-white) !important; border-color: var(--theme-line) !important; border-radius: 20px !important; box-shadow: var(--theme-shadow); }
+.registration-container { background: var(--theme-paper) !important; color: var(--theme-ink) !important; }
+.registration-container .form-box {
+  background: var(--theme-white) !important;
+  color: var(--theme-ink) !important;
+  border: 1px solid var(--theme-line) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--theme-shadow) !important;
+}
+.registration-container .form-box h2 { color: var(--theme-clay) !important; }
+
+/* Admin workspace follows the same palette while retaining its dark sidebar. */
+.admin-shell {
+  --ink: var(--theme-ink) !important;
+  --muted: var(--theme-muted) !important;
+  --faint: #988d82 !important;
+  --maroon: var(--theme-clay) !important;
+  --maroon-deep: var(--theme-clay-dark) !important;
+  --spine: #39271e !important;
+  --gold: #d6a65e !important;
+  --gold-aged: var(--theme-clay) !important;
+  --paper: var(--theme-paper) !important;
+  --card: var(--theme-white) !important;
+  --line: var(--theme-line) !important;
+  --line-strong: #d4c5b4 !important;
+  background: var(--theme-paper) !important;
+}
+.admin-shell .admin-body { font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif; }
+.admin-shell .a-head h1 { font-family: Newsreader, Georgia, serif !important; }
+.admin-shell .a-card, .admin-shell .a-figure { border-radius: 16px !important; }
+
+/* Shared secondary widgets and footers */
+.ld-card { border-color: var(--theme-line) !important; box-shadow: var(--theme-shadow) !important; }
+.ld-enter { background: var(--theme-clay) !important; }
+.wb-banner { background: linear-gradient(90deg, #70402b, var(--theme-clay)) !important; }
+.wb-label { background: #e2ba7e !important; color: #402b1e !important; }
+.wb-item strong { color: #f4d4a0 !important; }
+.site-footer { background: #39271e !important; }
+.site-footer a { color: #e8c28b !important; }
+
+/* Shared type and color tokens for every public route. */
+body { background: var(--theme-paper); color: var(--theme-ink); }
+:where(.home, .content-page, .account, .donate, .store, .product, .checkout,
+  .receipt, .pg-list, .pg-detail, .pg-status, .registration-container,
+  .auth-page, .dashboard, .admin-shell) {
+  color: var(--theme-ink);
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif;
+}
+:where(.home, .content-page, .account, .donate, .store, .product, .checkout,
+  .receipt, .pg-list, .pg-detail, .pg-status, .dashboard, .admin-shell)
+  :where(h1, h2, h3, h4, h5, h6) {
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
+  color: var(--theme-ink);
+  letter-spacing: -0.035em;
+}
+.home { background: var(--theme-paper) !important; color: var(--theme-ink) !important; }
+
+@media (max-width: 640px) {
+  .auth-page { padding: 20px 14px !important; }
+  .auth-card { padding: 28px 20px !important; }
+  .donate-body { padding-top: 26px !important; }
+  .store, .product, .checkout, .receipt { padding-inline: 16px !important; }
+  .admin-shell .admin-body { padding: 22px 16px 54px !important; }
+}
+
+/* Consistent small-screen rhythm across public pages and admin views. */
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+
+  h1 { font-size: clamp(2rem, 9vw, 2.8rem); line-height: 1.05; }
+  h2 { line-height: 1.15; }
+
+  :where(.content-page, .account, .donate, .store, .product, .checkout,
+    .receipt, .pg-list, .pg-detail, .pg-status, .pg-body-pay,
+    .rcpt, .registration-container) {
+    min-width: 0;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  :where(.content-head, .account-head, .store-head, .product-head,
+    .checkout-head, .pg-list-head, .rcpt-head, .donate-hero) {
+    text-align: left;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  :where(.content-head h1, .account-head h1, .store-head h1,
+    .product-head h1, .checkout-head h1, .pg-list-head h1,
+    .donate-hero h1, .rcpt-head h1) {
+    max-width: 18ch;
+    margin-left: 0;
+    margin-right: 0;
+    font-size: clamp(2rem, 9vw, 2.65rem);
+    line-height: 1.04;
+    text-wrap: balance;
+  }
+
+  :where(.content-card, .blog-card, .blog-lead, .account-card,
+    .store-card, .product-card, .product-panel, .checkout-card,
+    .checkout-items, .checkout-summary, .pg-card, .pg-panel,
+    .donate-card, .donate-quote, .donate-other) {
+    min-width: 0;
+    border-radius: 16px !important;
+  }
+
+  :where(.content-filters, .account-actions, .checkout-actions,
+    .pg-actions, .donate-actions) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  :where(.content-filters button, .account-actions a, .account-actions button,
+    .checkout-actions button, .pg-actions a, .pg-actions button,
+    .donate-actions button) {
+    max-width: 100%;
+  }
+
+  :where(.content-page, .account, .donate, .store, .product, .checkout,
+    .registration-container, .admin-shell) input,
+  :where(.content-page, .account, .donate, .store, .product, .checkout,
+    .registration-container, .admin-shell) select,
+  :where(.content-page, .account, .donate, .store, .product, .checkout,
+    .registration-container, .admin-shell) textarea {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .table-scroll { margin-inline: -4px; width: calc(100% + 8px); }
+
+  .floating-cart, .floating-admin {
+    right: 12px;
+    padding: 11px 16px;
+    max-width: calc(100vw - 24px);
+  }
+}
+
+@media (max-width: 380px) {
+  .site-nav { padding-inline: 12px !important; }
+  .site-nav-brand { gap: 8px; }
+  .site-nav-brand img { width: 48px !important; }
+  .site-nav-brand span { font-size: 0.86rem; }
+  .site-nav-brand span::after { font-size: 0.49rem; letter-spacing: 0.1em; }
+  .auth-card { padding: 24px 16px !important; }
+  :where(.content-page, .account, .donate, .store, .product, .checkout,
+    .receipt, .pg-list, .pg-detail, .pg-status, .pg-body-pay,
+    .rcpt, .registration-container) { padding-inline: 12px; }
+}
+
+/* Keep every route on the homepage's Inter + Newsreader type system. */
+body,
+:is(.home, .content-page, .account, .donate, .store, .product, .checkout,
+  .receipt, .pg-list, .pg-detail, .registration-container, .auth-page,
+  .dashboard, .admin-shell) {
+  font-family: Inter, "Avenir Next", Avenir, "Segoe UI", sans-serif !important;
+}
+body :is(h1, h2, h3, h4, h5, h6),
+:is(.home, .content-page, .account, .donate, .store, .product, .checkout,
+  .receipt, .pg-list, .pg-detail, .registration-container, .auth-page,
+  .dashboard, .admin-shell) :is(h1, h2, h3, h4, h5, h6) {
+  font-family: Newsreader, Georgia, "Times New Roman", serif !important;
+}
+
+/* Branded route loading overlay */
+.dyo-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(43, 36, 32, .48);
+  backdrop-filter: blur(7px);
+  animation: dyo-loader-appear .18s ease-out both;
+}
+.dyo-loader-card {
+  position: relative;
+  display: flex;
+  width: min(100%, 290px);
+  flex-direction: column;
+  align-items: center;
+  padding: 38px 32px 30px;
+  overflow: hidden;
+  border: 1px solid rgba(230,220,205,.9);
+  border-radius: 26px;
+  background: var(--theme-paper-soft, #fbf8f2);
+  box-shadow: 0 28px 90px rgba(25,16,11,.24);
+  animation: dyo-loader-card-in .42s cubic-bezier(.2,.8,.2,1) both;
+}
+.dyo-loader-orbit {
+  position: absolute;
+  top: 23px;
+  left: 50%;
+  width: 112px;
+  height: 112px;
+  border: 1px solid rgba(189,129,51,.24);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  animation: dyo-loader-orbit 5s linear infinite;
+}
+.dyo-loader-orbit::before,
+.dyo-loader-orbit::after {
+  position: absolute;
+  inset: 10px;
+  border: 1px dashed rgba(135,57,31,.2);
+  border-radius: inherit;
+  content: "";
+}
+.dyo-loader-orbit::after { inset: 21px; border-style: solid; border-color: rgba(189,129,51,.18); }
+.dyo-loader-orbit span {
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--theme-gold, #bd8133);
+  box-shadow: 0 0 12px rgba(189,129,51,.55);
+}
+.dyo-loader-orbit span:nth-child(2) { top: 13px; right: 13px; left: auto; width: 5px; height: 5px; background: var(--theme-clay, #87391f); }
+.dyo-loader-orbit span:nth-child(3) { top: auto; right: 17px; bottom: 10px; left: auto; width: 6px; height: 6px; background: #d8b779; }
+.dyo-loader-logo {
+  position: relative;
+  z-index: 1;
+  width: 84px;
+  height: 84px;
+  padding: 8px;
+  border: 1px solid rgba(189,129,51,.46);
+  border-radius: 24px;
+  background: var(--theme-white, #fffdf9);
+  object-fit: contain;
+  animation: dyo-loader-pulse 1.8s ease-in-out infinite;
+}
+.dyo-loader-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin: 20px 0 18px;
+  color: var(--theme-ink, #2b2420);
+  font-family: Newsreader, Georgia, serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.dyo-loader-title span {
+  color: var(--theme-muted, #766d64);
+  font-family: Inter, "Segoe UI", sans-serif;
+  font-size: .61rem;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.dyo-loader-track {
+  width: 100%;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--theme-line, #e6dccd);
+}
+.dyo-loader-track span {
+  display: block;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--theme-clay-dark, #6e2d19), var(--theme-gold, #bd8133));
+  animation: dyo-loader-sweep 1.25s cubic-bezier(.55,.05,.35,.95) infinite;
+}
+.dyo-loader-caption {
+  margin: 12px 0 0;
+  color: var(--theme-muted, #766d64);
+  font-size: .76rem;
+  letter-spacing: .03em;
+}
+@keyframes dyo-loader-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dyo-loader-card-in { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes dyo-loader-orbit { to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes dyo-loader-pulse { 0%,100% { transform: scale(.96); box-shadow: 0 0 0 0 rgba(189,129,51,0); } 50% { transform: scale(1); box-shadow: 0 0 0 7px rgba(189,129,51,.1); } }
+@keyframes dyo-loader-sweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(360%); } }
+@media (prefers-reduced-motion: reduce) {
+  .dyo-loader, .dyo-loader-card, .dyo-loader-orbit, .dyo-loader-logo, .dyo-loader-track span { animation-duration: 2.5s; }
+  .dyo-loader-orbit, .dyo-loader-logo, .dyo-loader-track span { animation: none; }
+}
