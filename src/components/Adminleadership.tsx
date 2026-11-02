@@ -1,9 +1,33 @@
 "use client";
 import ThemedSelect from "./ThemedSelect";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mongo } from "../lib/mongoClient";
 import { uploadPublicFile } from "../lib/Storage";
 import { ARCHDEACONRIES } from "../lib/Constants";
+
+const EXISTING_HOME_CLERGY = [
+  {
+    tier: "clergy" as const,
+    full_name: "Most Rev'd Williams Aladekugbe",
+    role: "Archbishop, Province of Ibadan\nBishop, Ibadan North Diocese",
+    photo_url: "/assets/bishop.jpg",
+    sort_order: 0,
+  },
+  {
+    tier: "clergy" as const,
+    full_name: "Ven. Dr. Ilori L. Tolu-Kehinde",
+    role: "Diocesan Youth Chaplain",
+    photo_url: "/assets/chap.jpg",
+    sort_order: 1,
+  },
+  {
+    tier: "clergy" as const,
+    full_name: "Rev. Canon Adebayo Olayinka",
+    role: "Assistant Diocesan Youth Chaplain",
+    photo_url: "/assets/achap.jpg",
+    sort_order: 2,
+  },
+].map((person) => ({ ...person, archdeaconry: null, bio: null, is_active: true }));
 
 interface Leader {
   id: string;
@@ -30,16 +54,42 @@ export default function AdminLeadership() {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
+  const initialized = useRef(false);
 
   useEffect(() => { void load(); }, []);
 
   async function load() {
-    const { data } = await mongo
+    const { data, error } = await mongo
       .from("leadership")
       .select("*")
       .order("tier", { ascending: true })
       .order("sort_order", { ascending: true });
-    setPeople((data as Leader[]) ?? []);
+    if (error) {
+      setMessage(error.code
+        ? `Couldn't load the leadership list (request failed: ${error.code}).`
+        : "Couldn't load the leadership list. Check the admin connection and try again.");
+      return;
+    }
+
+    let leaders = (data as Leader[]) ?? [];
+    // The homepage previously supplied these clergy as a hard-coded fallback.
+    // Move them into the editable list once, only when no managed entries exist.
+    if (leaders.length === 0 && !initialized.current) {
+      initialized.current = true;
+      const { error: seedError } = await mongo.from("leadership").insert(EXISTING_HOME_CLERGY);
+      if (seedError) {
+        setMessage("Couldn't prepare the existing homepage leaders for editing.");
+        return;
+      }
+      const { data: seeded } = await mongo
+        .from("leadership")
+        .select("*")
+        .order("tier", { ascending: true })
+        .order("sort_order", { ascending: true });
+      leaders = (seeded as Leader[]) ?? [];
+    }
+    initialized.current = true;
+    setPeople(leaders);
   }
 
   async function upload(file?: File) {
@@ -123,33 +173,32 @@ export default function AdminLeadership() {
   const excos = people.filter((p) => p.tier === "exco");
 
   const Row = ({ p }: { p: Leader }) => (
-    <div className="border rounded p-3 flex flex-wrap gap-3 items-center">
+    <div className="admin-leadership-row">
       {p.photo_url
-        ? <img src={p.photo_url} alt="" className="w-12 h-12 rounded-full object-cover" />
-        : <div className="w-12 h-12 rounded-full bg-gray-200 grid place-items-center">
+        ? <img src={p.photo_url} alt="" className="admin-leadership-avatar" />
+        : <div className="admin-leadership-avatar admin-leadership-avatar--blank">
             {p.full_name[0]}
           </div>}
 
-      <div className="flex-1 min-w-[170px]">
+      <div className="admin-leadership-info">
         <p className="font-semibold">{p.full_name}</p>
         <p className="text-sm text-gray-600 whitespace-pre-line">{p.role}</p>
         {p.archdeaconry && <p className="text-xs text-gray-500">{p.archdeaconry}</p>}
       </div>
 
-      <div className="flex gap-1">
+      <div className="admin-leadership-actions">
         <button onClick={() => move(p, -1)} className="border rounded px-2 py-1 text-xs"
-                aria-label="Move up">â†‘</button>
+                aria-label="Move up">↑</button>
         <button onClick={() => move(p, 1)} className="border rounded px-2 py-1 text-xs"
-                aria-label="Move down">â†“</button>
+                aria-label="Move down">↓</button>
       </div>
 
       <button onClick={() => toggleActive(p)}
-              className={`px-3 py-1 rounded text-xs ${
-                p.is_active ? "bg-green-100 text-green-800" : "bg-gray-200"}`}>
+              className={`admin-leadership-action-button ${p.is_active ? "is-showing" : "is-hidden"}`}>
         {p.is_active ? "Showing" : "Hidden"}
       </button>
-      <button onClick={() => startEdit(p)} className="underline text-sm">Edit</button>
-      <button onClick={() => remove(p)} className="text-red-600 text-sm">Remove</button>
+      <button onClick={() => startEdit(p)} className="admin-leadership-action-button is-edit">Edit</button>
+      <button onClick={() => remove(p)} className="admin-leadership-action-button is-remove">Remove</button>
     </div>
   );
 
@@ -158,7 +207,7 @@ export default function AdminLeadership() {
       <h1 className="text-2xl font-bold mb-1">Leadership</h1>
       <p className="text-gray-600 mb-6">
         Clergy show large at the top of the home page. Executives appear in the
-        grid underneath. Change these here â€” no code edit, no deploy.
+        grid underneath. Change these here — no code edit, no deploy.
       </p>
 
       <div className="border rounded-lg p-5 mb-10 bg-white shadow-sm">
@@ -167,8 +216,8 @@ export default function AdminLeadership() {
         <div className="grid md:grid-cols-2 gap-3">
           <ThemedSelect className="border rounded px-3 py-2" value={form.tier}
                   onChange={(e) => setForm({ ...form, tier: e.target.value as "clergy" | "exco" })}>
-            <option value="clergy">Clergy â€” featured at the top</option>
-            <option value="exco">Executive â€” in the grid</option>
+            <option value="clergy">Clergy — featured at the top</option>
+            <option value="exco">Executive — in the grid</option>
           </ThemedSelect>
           <input className="border rounded px-3 py-2" type="number"
                  placeholder="Position (lower shows first)"
@@ -192,7 +241,7 @@ export default function AdminLeadership() {
           <div>
             <input type="file" accept="image/*"
                    onChange={(e) => upload(e.target.files?.[0])} />
-            {uploading && <p className="text-xs mt-1">Uploadingâ€¦</p>}
+            {uploading && <p className="text-xs mt-1">Uploading…</p>}
           </div>
         </div>
 
@@ -202,12 +251,12 @@ export default function AdminLeadership() {
         )}
 
         <textarea className="border rounded px-3 py-2 w-full mt-3" rows={2}
-                  placeholder="Short note (optional) â€” shown on hover"
+                  placeholder="Short note (optional) — shown on hover"
                   value={form.bio}
                   onChange={(e) => setForm({ ...form, bio: e.target.value })} />
 
         <p className="text-xs text-gray-500 mt-2">
-          Portrait photos work best â€” roughly 3:4, face centred. Square or wide
+          Portrait photos work best — roughly 3:4, face centred. Square or wide
           photos get cropped from the middle.
         </p>
 
@@ -216,7 +265,7 @@ export default function AdminLeadership() {
         <div className="flex gap-3 mt-4">
           <button onClick={save} disabled={busy}
                   className="bg-[#800000] text-white px-5 py-2 rounded">
-            {busy ? "Savingâ€¦" : editing ? "Save changes" : "Add to the page"}
+            {busy ? "Saving…" : editing ? "Save changes" : "Add to the page"}
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm({ ...BLANK }); }}

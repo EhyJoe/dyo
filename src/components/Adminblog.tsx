@@ -68,7 +68,7 @@ export default function AdminBlog() {
     const payload = {
       title: form.title.trim(),
       slug: slugify(form.title),
-      excerpt: form.excerpt.trim() || form.body.trim().slice(0, 160) + "â€¦",
+      excerpt: form.excerpt.trim() || form.body.trim().slice(0, 160) + "…",
       body: form.body,
       cover_url: form.cover_url || null,
       category: form.category,
@@ -86,7 +86,7 @@ export default function AdminBlog() {
     if (error) {
       return setMessage(
         error.code === "23505"
-          ? "A post with that title already exists â€” change it slightly."
+          ? "A post with that title already exists — change it slightly."
           : "Couldn't save that post.",
       );
     }
@@ -147,7 +147,7 @@ export default function AdminBlog() {
           <div>
             <input type="file" accept="image/*"
                    onChange={(e) => uploadCover(e.target.files?.[0])} />
-            {uploading && <p style={{ fontSize: "0.82rem" }}>Uploadingâ€¦</p>}
+            {uploading && <p style={{ fontSize: "0.82rem" }}>Uploading…</p>}
           </div>
         </div>
 
@@ -171,14 +171,14 @@ export default function AdminBlog() {
         <p style={{ fontSize: "0.82rem", color: "var(--muted)", marginTop: 6,
                     fontVariantNumeric: "tabular-nums" }}>
           {words} word{words === 1 ? "" : "s"}
-          {words > 0 && ` Â· about ${Math.max(1, Math.ceil(words / 200))} min read`}
+          {words > 0 && ` · about ${Math.max(1, Math.ceil(words / 200))} min read`}
         </p>
 
         {message && <p style={{ fontSize: "0.9rem", marginTop: 10 }}>{message}</p>}
 
         <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <button className="a-btn" onClick={() => save(true)} disabled={busy}>
-            {busy ? "Savingâ€¦" : editing ? "Save and publish" : "Publish"}
+            {busy ? "Saving…" : editing ? "Save and publish" : "Publish"}
           </button>
           <button className="a-btn a-btn--quiet" onClick={() => save(false)} disabled={busy}>
             Save as draft
@@ -215,9 +215,9 @@ export default function AdminBlog() {
                 </strong>
                 <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
                   {p.category}
-                  {p.reading_minutes ? ` Â· ${p.reading_minutes} min read` : ""}
+                  {p.reading_minutes ? ` · ${p.reading_minutes} min read` : ""}
                   {p.published_at
-                    ? ` Â· ${new Date(p.published_at).toLocaleDateString("en-NG")}`
+                    ? ` · ${new Date(p.published_at).toLocaleDateString("en-NG")}`
                     : ""}
                 </span>
               </div>

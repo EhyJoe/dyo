@@ -271,8 +271,19 @@ export default function AccountPage() {
               <input name="occupation" value={form.occupation ?? ""} onChange={set} />
             </label>
             <label>Highest qualification
-              <input name="educational_qualification"
-                     value={form.educational_qualification ?? ""} onChange={set} />
+              <ThemedSelect name="educational_qualification"
+                            value={form.educational_qualification ?? ""} onChange={set}>
+                <option value="">Choose</option>
+                {!["Msc", "Bsc", "HND", "OND", "SSCE", "Others"].includes(form.educational_qualification ?? "") && form.educational_qualification && (
+                  <option value={form.educational_qualification}>{form.educational_qualification}</option>
+                )}
+                <option value="Msc">Msc</option>
+                <option value="Bsc">Bsc</option>
+                <option value="HND">HND</option>
+                <option value="OND">OND</option>
+                <option value="SSCE">SSCE</option>
+                <option value="Others">Others</option>
+              </ThemedSelect>
             </label>
           </div>
           <label className="account-full">Address

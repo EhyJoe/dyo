@@ -21,11 +21,11 @@ type Tournament = {
   status: string; starts_on: string | null; ends_on: string | null;
   banner_url?: string | null; card_template_url?: string | null; format?: string;
 };
-type Team = { id: string; name: string; group_name: string | null; played: number; won: number; drawn: number;
+type Team = { id: string; name: string; archdeaconry?: string | null; group_name: string | null; played: number; won: number; drawn: number;
   lost: number; goals_for: number; goals_against: number; points: number };
 type Fixture = { id: string; home_team: string | null; away_team: string | null;
   round: string | null; venue: string | null; kickoff_at: string | null;
-  status: string; home_score: number; away_score: number; minute: number | null };
+  status: string; is_published?: boolean; home_score: number; away_score: number; minute: number | null };
 
 type TabKey = "teams" | "fixtures" | "standings" | "bracket" | "fields" | "registrations";
 
@@ -40,6 +40,10 @@ export default function AdminTournaments() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabKey>("teams");
   const [consoleFixture, setConsoleFixture] = useState<any>(null);
+  const [savingTournament, setSavingTournament] = useState(false);
+  const [tournamentMessage, setTournamentMessage] = useState("");
+  const [uploadingImage, setUploadingImage] = useState<"banner_url" | "card_template_url" | null>(null);
+  const [tournamentForm, setTournamentForm] = useState({ name: "", status: "upcoming", starts_on: "", ends_on: "" });
 
   // new tournament form
   const [newName, setNewName] = useState("");
@@ -48,12 +52,24 @@ export default function AdminTournaments() {
 
   // new team / fixture
   const [teamName, setTeamName] = useState("");
-  const [teamArch, setTeamArch] = useState("");  // which archdeaconry this team represents
+  const [teamArchs, setTeamArchs] = useState<string[]>([]);
   const [teamGroup, setTeamGroup] = useState("");  // which group (A, B, ...)
   const [fx, setFx] = useState({ home: "", away: "", round: "", venue: "", kickoff: "" });
 
   useEffect(() => { void loadTournaments(); }, []);
-  useEffect(() => { if (selected) void loadDetail(); }, [selected?.id]);
+  useEffect(() => {
+    if (!selected) return;
+    setTeamArchs([]);
+    setTeamGroup("");
+    setTournamentForm({
+      name: selected.name,
+      status: selected.status || "upcoming",
+      starts_on: selected.starts_on?.slice(0, 10) ?? "",
+      ends_on: selected.ends_on?.slice(0, 10) ?? "",
+    });
+    setTournamentMessage("");
+    void loadDetail();
+  }, [selected?.id]);
 
   async function loadTournaments() {
     setLoading(true);
@@ -72,6 +88,22 @@ export default function AdminTournaments() {
     setFixtures(f ?? []);
   }
 
+  async function saveStanding(team: Team) {
+    const { error } = await mongo.from("tournament_teams").update({
+      played: Number(team.played) || 0, won: Number(team.won) || 0,
+      drawn: Number(team.drawn) || 0, lost: Number(team.lost) || 0,
+      goals_for: Number(team.goals_for) || 0, goals_against: Number(team.goals_against) || 0,
+      points: Number(team.points) || 0,
+    }).eq("id", team.id);
+    if (error) { alert("Couldn't save this standings row. Please try again."); return; }
+    void loadDetail();
+  }
+
+  function editStanding(teamId: string, field: keyof Team, value: string) {
+    setTeams((current) => current.map((team) => team.id === teamId
+      ? { ...team, [field]: Math.max(0, Number(value) || 0) } : team));
+  }
+
   async function createTournament() {
     if (!newName.trim()) return;
     const { error } = await mongo.from("tournaments").insert({
@@ -82,21 +114,59 @@ export default function AdminTournaments() {
     void loadTournaments();
   }
 
-  async function setStatus(t: Tournament, status: string) {
-    await mongo.from("tournaments").update({ status }).eq("id", t.id);
-    void loadTournaments();
-    if (selected?.id === t.id) setSelected({ ...t, status });
+  async function saveTournamentChanges() {
+    if (!selected || !tournamentForm.name.trim()) {
+      setTournamentMessage("Enter a tournament name before saving.");
+      return;
+    }
+    setSavingTournament(true);
+    setTournamentMessage("");
+    const changes = {
+      name: tournamentForm.name.trim(),
+      status: tournamentForm.status,
+      starts_on: tournamentForm.starts_on || null,
+      ends_on: tournamentForm.ends_on || null,
+    };
+    try {
+      const { error } = await mongo.from("tournaments").update(changes).eq("id", selected.id);
+      if (error) {
+        setTournamentMessage("Couldn't save these tournament changes. Please try again.");
+        return;
+      }
+      setSelected({ ...selected, ...changes });
+      setTournaments((current) => current.map((tournament) => tournament.id === selected.id
+        ? { ...tournament, ...changes } : tournament));
+      setTournamentMessage("Tournament changes saved.");
+    } catch {
+      setTournamentMessage("Couldn't save these tournament changes. Please try again.");
+    } finally {
+      setSavingTournament(false);
+    }
   }
 
   async function addTeam() {
-    if (!teamName.trim() || !selected) return;
-    const teamSlug = teamArch ? slugify(teamArch) : slugify(teamName);
-    const { error } = await mongo.from("tournament_teams").insert({
-      tournament_id: selected.id, name: teamName.trim(), slug: teamSlug,
-      group_name: teamGroup || null,
-    });
-    if (error) { alert("Couldn't save that tournament. Please try again."); return; }
-    setTeamName(""); setTeamArch(""); setTeamGroup("");
+    if (!selected) return;
+    const isArchdeaconryLeague = selected.team_type === "archdeaconry";
+    if (isArchdeaconryLeague) {
+      const alreadyAdded = new Set(teams.map((team) => team.archdeaconry || team.name));
+      const names = teamArchs.filter((name) => !alreadyAdded.has(name));
+      if (names.length === 0) { alert("Choose one or more archdeaconries that are not already in this league."); return; }
+      const { error } = await mongo.from("tournament_teams").insert(names.map((name) => ({
+        tournament_id: selected.id, name, slug: slugify(name), archdeaconry: name,
+        group_name: teamGroup || null,
+        played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, points: 0,
+      })));
+      if (error) { alert("Couldn't save those teams. Please try again."); return; }
+    } else {
+      if (!teamName.trim()) return;
+      const { error } = await mongo.from("tournament_teams").insert({
+        tournament_id: selected.id, name: teamName.trim(), slug: slugify(teamName),
+        group_name: teamGroup || null,
+        played: 0, won: 0, drawn: 0, lost: 0, goals_for: 0, goals_against: 0, points: 0,
+      });
+      if (error) { alert("Couldn't save that team. Please try again."); return; }
+    }
+    setTeamName(""); setTeamArchs([]); setTeamGroup("");
     void loadDetail();
   }
 
@@ -121,12 +191,16 @@ export default function AdminTournaments() {
 
   async function uploadTournamentImage(field: "banner_url" | "card_template_url", file?: File) {
     if (!file || !selected) return;
+    setUploadingImage(field);
     try {
       const url = await uploadPublicFile("programme-media", file, `tournaments/${selected.slug}`);
       const { error } = await mongo.from("tournaments").update({ [field]: url }).eq("id", selected.id);
       if (error) { alert("Couldn't save those details. Please try again."); return; }
       setSelected({ ...selected, [field]: url });
+      setTournaments((current) => current.map((tournament) => tournament.id === selected.id
+        ? { ...tournament, [field]: url } : tournament));
     } catch { alert("Upload failed. Try again."); }
+    finally { setUploadingImage(null); }
   }
 
   async function addFixture() {
@@ -138,10 +212,33 @@ export default function AdminTournaments() {
       home_team: fx.home, away_team: fx.away,
       round: fx.round || null, venue: fx.venue || null,
       kickoff_at: fx.kickoff ? new Date(fx.kickoff).toISOString() : null,
+      status: "scheduled", is_published: false,
     });
     if (error) { alert("Couldn't update that tournament. Please try again."); return; }
     setFx({ home: "", away: "", round: "", venue: "", kickoff: "" });
     void loadDetail();
+  }
+
+  async function setFixturePublished(fixture: Fixture, is_published: boolean) {
+    const { error } = await mongo.from("fixtures").update({ is_published }).eq("id", fixture.id);
+    if (error) { alert("Couldn't update fixture publishing. Please try again."); return; }
+    void loadDetail();
+  }
+
+  async function publishAllFixtures() {
+    if (!selected) return;
+    const unpublished = fixtures.filter((fixture) => fixture.is_published === false);
+    if (unpublished.length === 0) return;
+    const { error } = await mongo.from("fixtures").update({ is_published: true })
+      .eq("tournament_id", selected.id).eq("is_published", false);
+    if (error) { alert("Fixtures couldn't be published. Please try again."); return; }
+    void loadDetail();
+  }
+
+  function toggleArchdeaconry(name: string) {
+    setTeamArchs((current) => current.includes(name)
+      ? current.filter((item) => item !== name)
+      : [...current, name]);
   }
 
   // Draw a simple round-robin: everyone plays everyone once.
@@ -328,8 +425,8 @@ export default function AdminTournaments() {
       </button>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold">{selected.name}</h1>
-        <ThemedSelect className="border rounded px-3 py-2" value={selected.status}
-                onChange={(e) => setStatus(selected, e.target.value)}>
+        <ThemedSelect className="border rounded px-3 py-2" value={tournamentForm.status}
+                onChange={(e) => setTournamentForm({ ...tournamentForm, status: e.target.value })}>
           <option value="upcoming">Upcoming</option>
           <option value="registration_open">Registration open</option>
           <option value="ongoing">Ongoing</option>
@@ -337,16 +434,41 @@ export default function AdminTournaments() {
         </ThemedSelect>
       </div>
 
+      <section className="mb-5 grid gap-3 rounded-lg border bg-white p-4 sm:grid-cols-2">
+        <label className="grid gap-1 text-sm font-medium sm:col-span-2">
+          Tournament name
+          <input className="rounded border px-3 py-2 font-normal" value={tournamentForm.name}
+            onChange={(event) => setTournamentForm({ ...tournamentForm, name: event.target.value })} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Starts on
+          <input type="date" className="rounded border px-3 py-2 font-normal" value={tournamentForm.starts_on}
+            onChange={(event) => setTournamentForm({ ...tournamentForm, starts_on: event.target.value })} />
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Ends on
+          <input type="date" className="rounded border px-3 py-2 font-normal" value={tournamentForm.ends_on}
+            onChange={(event) => setTournamentForm({ ...tournamentForm, ends_on: event.target.value })} />
+        </label>
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+          <button onClick={saveTournamentChanges} disabled={savingTournament}
+            className="rounded bg-[#800000] px-4 py-2 font-semibold text-white disabled:opacity-60">
+            {savingTournament ? "Saving..." : "Save changes"}
+          </button>
+          {tournamentMessage && <p role="status" className="text-sm text-gray-600">{tournamentMessage}</p>}
+        </div>
+      </section>
+
       {/* Flyer + card template uploads */}
       <div className="flex flex-wrap gap-4 mb-5 text-sm">
-        <label className="border rounded px-3 py-2 cursor-pointer bg-gray-50">
-          {selected.banner_url ? "Change flyer" : "Upload flyer"}
-          <input type="file" accept="image/*" hidden
+        <label className={`border rounded px-3 py-2 cursor-pointer bg-gray-50 ${uploadingImage === "banner_url" ? "opacity-60" : ""}`}>
+          {uploadingImage === "banner_url" ? "Uploading..." : selected.banner_url ? "Change flyer" : "Upload flyer"}
+          <input type="file" accept="image/*" hidden disabled={uploadingImage !== null}
                  onChange={(e) => uploadTournamentImage("banner_url", e.target.files?.[0])} />
         </label>
-        <label className="border rounded px-3 py-2 cursor-pointer bg-gray-50">
-          {selected.card_template_url ? "Change card template" : "Upload card template"}
-          <input type="file" accept="image/*" hidden
+        <label className={`border rounded px-3 py-2 cursor-pointer bg-gray-50 ${uploadingImage === "card_template_url" ? "opacity-60" : ""}`}>
+          {uploadingImage === "card_template_url" ? "Uploading..." : selected.card_template_url ? "Change card template" : "Upload card template"}
+          <input type="file" accept="image/*" hidden disabled={uploadingImage !== null}
                  onChange={(e) => uploadTournamentImage("card_template_url", e.target.files?.[0])} />
         </label>
         {selected.card_template_url && (
@@ -371,14 +493,9 @@ export default function AdminTournaments() {
       {tab === "teams" && (
         <div>
           <div className="flex gap-2 mb-4 flex-wrap">
-            <input className="border rounded px-3 py-2 flex-1 min-w-[180px]" placeholder="Team name"
-                   value={teamName} onChange={(e) => setTeamName(e.target.value)} />
-            {selected.team_type === "archdeaconry" && (
-              <ThemedSelect className="border rounded px-3 py-2" value={teamArch}
-                      onChange={(e) => setTeamArch(e.target.value)}>
-                <option value="">Represents… (archdeaconry)</option>
-                {ARCHDEACONRIES.map((a) => <option key={a} value={a}>{a}</option>)}
-              </ThemedSelect>
+            {selected.team_type !== "archdeaconry" && (
+              <input className="border rounded px-3 py-2 flex-1 min-w-[180px]" placeholder="Team name"
+                     value={teamName} onChange={(e) => setTeamName(e.target.value)} />
             )}
             {/* Group picker for group-based formats */}
             {(selected.format === "group_knockout" || selected.format === "league") && (
@@ -389,8 +506,35 @@ export default function AdminTournaments() {
                   <option key={g} value={g}>Group {g}</option>)}
               </ThemedSelect>
             )}
-            <button onClick={addTeam} className="bg-[#800000] text-white px-4 py-2 rounded">Add team</button>
+            {selected.team_type !== "archdeaconry" && (
+              <button onClick={addTeam} className="bg-[#800000] text-white px-4 py-2 rounded">Add team</button>
+            )}
           </div>
+          {selected.team_type === "archdeaconry" && (
+            <section className="mb-4 rounded-lg border bg-gray-50 p-4" aria-label="Choose league archdeaconries">
+              <h3 className="font-semibold">Choose participating archdeaconries</h3>
+              <p className="mb-3 mt-1 text-sm text-gray-600">Click each archdeaconry you want in this league.</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+                {ARCHDEACONRIES.filter((name) => !teams.some((team) => (team.archdeaconry || team.name) === name)).map((name) => {
+                  const picked = teamArchs.includes(name);
+                  return <button key={name} type="button" aria-pressed={picked}
+                    onClick={() => toggleArchdeaconry(name)}
+                    className={`rounded-lg border px-3 py-2 text-left text-sm font-semibold transition-colors ${picked
+                      ? "border-[#800000] bg-[#800000] text-white"
+                      : "border-gray-300 bg-white text-gray-800 hover:border-[#800000]"}`}>
+                    {name}
+                  </button>;
+                })}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className="text-sm text-gray-600">{teamArchs.length} selected</span>
+                <button onClick={addTeam} disabled={teamArchs.length === 0}
+                  className="rounded bg-[#800000] px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                  Add selected archdeaconries
+                </button>
+              </div>
+            </section>
+          )}
           <div className="grid gap-2">
             {teams.map((t: any) => (
               <div key={t.id} className="border rounded p-3 flex justify-between items-center">
@@ -406,7 +550,14 @@ export default function AdminTournaments() {
       {tab === "fixtures" && (
         <div>
           <div className="border rounded-lg p-4 mb-4 bg-gray-50">
-            <h3 className="font-semibold mb-3">Add a fixture</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold">Add a fixture</h3>
+              {fixtures.some((fixture) => fixture.is_published === false) && (
+                <button onClick={publishAllFixtures} className="rounded bg-[#800000] px-3 py-2 text-sm font-semibold text-white">
+                  Publish all fixtures ({fixtures.filter((fixture) => fixture.is_published === false).length})
+                </button>
+              )}
+            </div>
             <div className="grid sm:grid-cols-2 gap-2 mb-2">
               <ThemedSelect className="border rounded px-3 py-2" value={fx.home}
                       onChange={(e) => setFx({ ...fx, home: e.target.value })}>
@@ -456,7 +607,10 @@ export default function AdminTournaments() {
                   <span className={`text-xs px-2 py-0.5 rounded ${
                     f.status === "live" ? "bg-red-100 text-red-700"
                       : f.status === "finished" ? "bg-gray-200" : "bg-blue-50 text-blue-700"}`}>
-                    {f.status}
+                    {f.status || "scheduled"}
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${f.is_published === false ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800"}`}>
+                    {f.is_published === false ? "Draft" : "Published"}
                   </span>
                 </div>
                 <div className="flex items-center justify-center gap-3 mb-3">
@@ -475,6 +629,10 @@ export default function AdminTournaments() {
                   <button onClick={() => setFixtureStatus(f, "half_time")} className="text-xs px-3 py-1 rounded bg-gray-200">Half time</button>
                   <button onClick={() => setFixtureStatus(f, "finished")} className="text-xs px-3 py-1 rounded bg-gray-800 text-white">Full time</button>
                   <button onClick={() => deleteFixture(f.id)} className="text-xs px-3 py-1 rounded text-red-600">Delete</button>
+                  <button onClick={() => setFixturePublished(f, f.is_published === false)}
+                    className={`text-xs px-3 py-1 rounded font-semibold ${f.is_published === false ? "bg-[#800000] text-white" : "border border-gray-300 bg-white text-gray-700"}`}>
+                    {f.is_published === false ? "Publish to website" : "Unpublish"}
+                  </button>
                 </div>
                 <div className="flex justify-center mt-2">
                   <button onClick={() => setConsoleFixture(f)} className="text-xs px-4 py-1.5 rounded bg-[#800000] text-white">⚽ Manage match (goals, cards)</button>
@@ -527,20 +685,22 @@ export default function AdminTournaments() {
                         <th className="border px-2 py-1">GA</th>
                         <th className="border px-2 py-1">GD</th>
                         <th className="border px-2 py-1">Pts</th>
+                        <th className="border px-2 py-1">Edit</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sorted.map((t) => (
                         <tr key={t.id}>
                           <td className="border px-2 py-1">{t.name}</td>
-                          <td className="border px-2 py-1 text-center">{t.played}</td>
-                          <td className="border px-2 py-1 text-center">{t.won}</td>
-                          <td className="border px-2 py-1 text-center">{t.drawn}</td>
-                          <td className="border px-2 py-1 text-center">{t.lost}</td>
-                          <td className="border px-2 py-1 text-center">{t.goals_for}</td>
-                          <td className="border px-2 py-1 text-center">{t.goals_against}</td>
+                          {(["played", "won", "drawn", "lost", "goals_for", "goals_against"] as const).map((field) => (
+                            <td className="border px-1 py-1 text-center" key={field}>
+                              <input aria-label={`${t.name} ${field.replaceAll("_", " ")}`} type="number" min="0" className="w-14 rounded border px-1 py-1 text-center"
+                                     value={t[field]} onChange={(event) => editStanding(t.id, field, event.target.value)} />
+                            </td>
+                          ))}
                           <td className="border px-2 py-1 text-center">{t.goals_for - t.goals_against}</td>
-                          <td className="border px-2 py-1 text-center font-bold">{t.points}</td>
+                          <td className="border px-1 py-1 text-center"><input aria-label={`${t.name} points`} type="number" min="0" className="w-14 rounded border px-1 py-1 text-center font-bold" value={t.points} onChange={(event) => editStanding(t.id, "points", event.target.value)} /></td>
+                          <td className="border px-2 py-1 text-center"><button className="a-btn a-btn--ghost" onClick={() => void saveStanding(t)}>Save</button></td>
                         </tr>
                       ))}
                     </tbody>

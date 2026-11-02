@@ -55,7 +55,7 @@ body :is(h1,h2,h3,h4,h5,h6) { font-family: Newsreader, Georgia, serif !important
 .public-widget-page .wb-banner { border-radius: 16px; box-shadow: var(--dyo-shadow); }
 .public-widget-page .wb-label { background: #e8c28b; color: #402b1e; }
 .public-widget-page .wb-item strong { color: #f4d4a0; }
-.auth-page { flex-direction: column !important; justify-content: flex-start !important; align-items: center; gap: clamp(32px, 6vh, 64px); min-height: 100vh; padding: clamp(24px, 5vh, 48px) 0 0 !important; }
+.auth-page { flex-direction: column !important; justify-content: flex-start !important; align-items: center; gap: clamp(32px, 6vh, 64px); min-height: calc(100vh - 64px); padding: clamp(24px, 5vh, 48px) 0 0 !important; }
 .auth-page > .auth-card { flex: 0 0 auto; width: min(620px, calc(100% - 32px)); margin: 0 auto !important; }
 .auth-page > .home-footer { flex: 0 0 auto; align-self: stretch; width: 100%; }
 

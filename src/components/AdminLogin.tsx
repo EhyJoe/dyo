@@ -20,7 +20,7 @@ export default function AdminLogin() {
     });
     const result = await response.json();
     if (!response.ok) setError(result.error || "Invalid credentials. Please try again.");
-    else navigate("/admin-dashboard");
+    else navigate("/private-dashboard");
   };
 
   return (

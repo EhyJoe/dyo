@@ -5,7 +5,7 @@ import type { Db, IndexDescription } from "mongodb";
  * non-unique until any imported legacy data has been inspected.
  */
 export const COLLECTIONS = [
-  "users", "profiles", "archdeaconries", "site_pages", "announcements", "home_popup",
+  "users", "profiles", "password_resets", "archdeaconries", "site_pages", "announcements", "home_popup",
   "leadership", "blog_posts", "gallery_images", "gallery_albums", "carousel_slides",
   "programmes", "programme_registrations", "registrations", "village_mission",
   "ignition_attendance", "products", "product_variants", "orders", "order_items",
@@ -18,6 +18,10 @@ export const COLLECTIONS = [
 const indexes: Record<string, IndexDescription[]> = {
   users: [{ key: { email: 1 }, unique: true, name: "unique_user_email" }],
   profiles: [{ key: { email: 1 } }, { key: { role: 1, managed_archdeaconry: 1 } }],
+  password_resets: [
+    { key: { email: 1 }, unique: true, name: "unique_password_reset_email" },
+    { key: { expires_at: 1 }, expireAfterSeconds: 0, name: "password_reset_expiry" },
+  ],
   archdeaconries: [{ key: { slug: 1 } }, { key: { sort_order: 1 } }],
   site_pages: [{ key: { slug: 1 } }, { key: { is_published: 1, in_menu: 1, sort_order: 1 } }],
   announcements: [{ key: { is_published: 1, created_at: -1 } }],

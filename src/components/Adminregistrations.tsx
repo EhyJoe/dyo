@@ -92,7 +92,7 @@ export default function AdminRegistrations() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <Link to="/admin/registrations" className="text-sm underline">← All programmes</Link>
+      <Link to="/private/registrations" className="text-sm underline">← All programmes</Link>
       <h1 className="text-2xl font-bold mt-2 mb-1">{programme?.title}</h1>
       <p className="text-gray-600 mb-5">
         {rows.length} registered · {paid} paid · {checkedIn} checked in

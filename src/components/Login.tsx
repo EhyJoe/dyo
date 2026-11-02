@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "@/lib/next-router";
 const logo = "/assets/dyo%20logo.png";
 import { useAuth } from "./Authcontext";
+import Navbar from "./Navbar";
 import SiteFooter from "./Sitefooter";
 import "./Auth.css";
 
@@ -21,7 +22,7 @@ export default function Login() {
    *  - `requestedNext` is set when a guard sent them here mid-task ("register
    *    for this programme"). That always wins — finish what they started.
    *  - Otherwise we choose the landing page by role: admins run the office
-   *    from /admin, so dropping them on the public home page just adds a click.
+   *    from /private, so dropping them on the public home page just adds a click.
    */
   const requestedNext = params.get("next") ?? null;
 
@@ -36,7 +37,7 @@ export default function Login() {
   useEffect(() => {
     if (loading || !session) return;
     if (requestedNext) navigate(requestedNext, { replace: true });
-    else navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+    else navigate(isAdmin ? "/private" : "/dashboard", { replace: true });
   }, [loading, session, isAdmin, requestedNext, navigate]);
 
   const submit = async (e: React.FormEvent) => {
@@ -74,7 +75,7 @@ export default function Login() {
         return;
       }
       const role = result.profile?.role;
-      navigate(role === "admin" || role === "super_admin" || role === "archdeaconry_admin" ? "/admin" : "/dashboard", { replace: true });
+      navigate(role === "admin" || role === "super_admin" || role === "archdeaconry_admin" ? "/private" : "/dashboard", { replace: true });
     } catch (err) {
       setError(
         (err as Error)?.message === "timeout"
@@ -87,16 +88,19 @@ export default function Login() {
   };
 
   const resetPassword = async () => {
-    setError("");
-    if (!email.trim()) return setError("Enter your email above first, then tap this.");
-    setError("Password reset is not available yet. Please contact the youth office.");
+    navigate(`/forgot-password${email.trim() ? `?email=${encodeURIComponent(email.trim().toLowerCase())}` : ""}`);
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card auth-card--narrow" onSubmit={submit}>
-        <img src={logo} alt="Diocesan Youth Organization" className="auth-logo" />
-        <h1>Sign in</h1>
+    <>
+      <Navbar />
+      <div className="auth-page">
+        <form className="auth-card auth-card--narrow" onSubmit={submit}>
+          <img src={logo} alt="Diocesan Youth Organization" className="auth-logo" />
+          <h1>Sign in</h1>
+          {params.get("password-reset") === "success" && (
+            <p className="auth-success" role="status">Your password has been changed. Sign in with your new password.</p>
+          )}
 
         <input type="email" placeholder="Email" value={email} autoComplete="email"
                onChange={(e) => setEmail(e.target.value)} required disabled={busy} />
@@ -127,9 +131,10 @@ export default function Login() {
             Create an account
           </Link>
         </p>
-      </form>
-      <SiteFooter />
-    </div>
+        </form>
+        <SiteFooter />
+      </div>
+    </>
   );
 }
 

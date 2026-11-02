@@ -92,7 +92,8 @@ export default function ArchdeaconryPage() {
               const w = registrationWindow(p);
               return (
                 <Link key={p.id} to={`/programmes/${p.slug}`} className="blog-card">
-                  {p.flyer_url && <img src={p.flyer_url} alt="" loading="lazy" />}
+                  <img className={p.flyer_url ? undefined : "programme-card-placeholder"}
+                    src={p.flyer_url || "/assets/dyo%20logo.png"} alt="" loading="lazy" />
                   <div className="blog-card-body">
                     <p className="blog-meta">{formatEventDate(p.starts_at)}</p>
                     <h3>{p.title}</h3>

@@ -21,6 +21,8 @@
 }
 .dyo-select-trigger:disabled { opacity: .65; cursor: not-allowed; }
 .dyo-select-trigger > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dyo-select-trigger > span.is-placeholder { font-weight: 400; }
+.dyo-select-trigger > span.is-value { font-weight: 700; }
 .dyo-select-trigger svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: var(--dyo-clay, #87391f); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; }
 .dyo-select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
 .dyo-select-menu {

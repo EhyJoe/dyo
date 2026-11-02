@@ -1,211 +1,141 @@
 "use client";
 import ThemedSelect from "./ThemedSelect";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { mongo } from "../lib/mongoClient";
 
-/**
- * Voucher generator.
- *
- * A voucher is a prepaid registration for a programme. Admins mint them here;
- * sponsors and body-payments mint them automatically elsewhere — all land in
- * the same vouchers table. Each carries an identity so the receipt can say who
- * the gift came from: anonymous, a named person, or a church body.
- */
+type Programme = { id: string; title: string; attending_tag_url?: string | null };
+type PassVoucher = { id: string; code: string; used: boolean; created_at?: string };
 
-function randomCode(len: number) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no ambiguous chars
-  let out = "";
-  for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
-  return out;
+function randomCode(length: number) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return `PASS-${Array.from(bytes, (byte) => chars[byte % chars.length]).join("")}`;
 }
 
-type Identity = "anonymous" | "person" | "body";
-type BodyType = "archdeaconry" | "parish" | "church";
-
 export default function VoucherGenerator() {
-  const [programmes, setProgrammes] = useState<{ id: string; title: string }[]>([]);
+  const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [programmeId, setProgrammeId] = useState("");
-
+  const [vouchers, setVouchers] = useState<PassVoucher[]>([]);
   const [count, setCount] = useState(10);
-  const [length, setLength] = useState(8);
-
-  const [identity, setIdentity] = useState<Identity>("anonymous");
-  const [personName, setPersonName] = useState("");
-  const [bodyType, setBodyType] = useState<BodyType>("church");
-  const [bodyName, setBodyName] = useState("");
-  const [community, setCommunity] = useState("");
-
-  const [generated, setGenerated] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const { data } = await mongo.from("programmes")
-        .select("id, title").order("starts_at", { ascending: false });
-      setProgrammes(data ?? []);
-      if (data?.[0]) setProgrammeId(data[0].id);
+        .select("id, title, attending_tag_url")
+        .eq("is_published", true)
+        .order("starts_at", { ascending: false });
+      const published = (data ?? []) as Programme[];
+      setProgrammes(published);
+      setProgrammeId(published[0]?.id ?? "");
+      setLoading(false);
     })();
   }, []);
 
+  const loadVouchers = useCallback(async () => {
+    if (!programmeId) { setVouchers([]); return; }
+    const { data } = await mongo.from("vouchers")
+      .select("id, code, used, created_at")
+      .eq("programme_id", programmeId)
+      .eq("purpose", "programme_pass")
+      .order("created_at", { ascending: false });
+    setVouchers((data ?? []) as PassVoucher[]);
+  }, [programmeId]);
+
+  useEffect(() => { void loadVouchers(); }, [loadVouchers]);
+
   async function createVouchers() {
     setMessage("");
-    if (!programmeId) return setMessage("Choose which programme these vouchers are for.");
-    if (count <= 0 || length < 4) return setMessage("Enter a valid count and a length of at least 4.");
-    if (identity === "person" && !personName.trim()) return setMessage("Enter the person's name.");
-    if (identity === "body" && !bodyName.trim()) return setMessage("Enter the body's name.");
-
-    setLoading(true);
-
-    const codes = new Set<string>();
-    while (codes.size < count) codes.add(randomCode(length));
-
-    const identityName =
-      identity === "person" ? personName.trim() :
-      identity === "body" ? bodyName.trim() : null;
-
-    const rows = Array.from(codes).map((code) => ({
-      code,
-      used: false,
-      used_by: null,
-      programme_id: programmeId,
-      identity_type: identity,
-      identity_name: identityName,
-      body_type: identity === "body" ? bodyType : null,
-      church_community: identity === "body" && bodyType === "church" ? community.trim() || null : null,
-      source: "admin",
-    }));
-
-    const { error } = await mongo.from("vouchers").insert(rows);
-    setLoading(false);
-
-    if (error) {
-      setMessage("Couldn't save the vouchers. Please try again.");
-      return;
+    const programme = programmes.find((item) => item.id === programmeId);
+    if (!programme) { setMessage("Choose a published programme."); return; }
+    if (!programme.attending_tag_url) { setMessage("Upload a programme pass card in the programme editor first."); return; }
+    if (!Number.isInteger(count) || count < 1 || count > 500) {
+      setMessage("Choose a quantity from 1 to 500."); return;
     }
 
-    setGenerated(Array.from(codes));
-    setMessage(`${count} voucher${count === 1 ? "" : "s"} generated.`);
-  }
-
-  function copyAll() {
-    if (!generated.length) return;
-    navigator.clipboard.writeText(generated.join("\n"));
-    setMessage("Copied to clipboard.");
+    setSaving(true);
+    const codes = new Set<string>();
+    while (codes.size < count) codes.add(randomCode(8));
+    const rows = Array.from(codes, (code) => ({
+      code, programme_id: programmeId, purpose: "programme_pass",
+      used: false, used_by: null, registration_id: null, source: "admin",
+    }));
+    const { error } = await mongo.from("vouchers").insert(rows);
+    setSaving(false);
+    if (error) { setMessage("Couldn't save the vouchers. Please try again."); return; }
+    setMessage(`${count} programme pass voucher${count === 1 ? "" : "s"} generated.`);
+    void loadVouchers();
   }
 
   function downloadCSV() {
-    if (!generated.length) return;
-    const prog = programmes.find((p) => p.id === programmeId)?.title ?? "programme";
-    const blob = new Blob([generated.join("\n")], { type: "text/csv" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `vouchers-${prog.replace(/[^a-z0-9]+/gi, "-")}.csv`;
-    a.click();
+    if (!vouchers.length) return;
+    const title = programmes.find((item) => item.id === programmeId)?.title ?? "programme";
+    const rows = ["Code,Status", ...vouchers.map((item) => `${item.code},${item.used ? "Used" : "Available"}`)];
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `pass-vouchers-${title.replace(/[^a-z0-9]+/gi, "-")}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-1">Voucher generator</h1>
-      <p className="text-gray-600 mb-6">
-        Mint prepaid registration codes for a programme. Whoever holds a code can
-        register free — the receipt shows who the gift came from.
+    <div className="mx-auto max-w-4xl p-6">
+      <h1 className="mb-1 text-2xl font-bold">Programme pass vouchers</h1>
+      <p className="mb-6 text-gray-600">
+        Generate one-use codes for published programmes. A registrant enters a code to unlock and download their programme pass card.
       </p>
 
-      <div className="border rounded-lg p-5 bg-white shadow-sm">
-        <label className="block text-sm font-medium mb-1">Programme</label>
-        <ThemedSelect className="border rounded px-3 py-2 w-full mb-4"
-                value={programmeId} onChange={(e) => setProgrammeId(e.target.value)}>
-          {programmes.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
-        </ThemedSelect>
-
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">How many</label>
-            <input type="number" min={1} className="border rounded px-3 py-2 w-full"
-                   value={count} onChange={(e) => setCount(Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Code length</label>
-            <input type="number" min={4} className="border rounded px-3 py-2 w-full"
-                   value={length} onChange={(e) => setLength(Number(e.target.value))} />
-          </div>
-        </div>
-
-        {/* Who the gift is from */}
-        <label className="block text-sm font-medium mb-2">Who is sponsoring?</label>
-        <div className="flex gap-2 mb-3 flex-wrap">
-          {([
-            ["anonymous", "Anonymous"],
-            ["person", "A person"],
-            ["body", "Archdeaconry / parish / church"],
-          ] as const).map(([val, label]) => (
-            <button key={val} type="button"
-                    onClick={() => setIdentity(val)}
-                    className={`px-3 py-2 rounded text-sm border ${
-                      identity === val ? "bg-[#800000] text-white border-[#800000]" : "bg-white"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {identity === "person" && (
-          <input className="border rounded px-3 py-2 w-full mb-4"
-                 placeholder="Full name of the sponsor"
-                 value={personName} onChange={(e) => setPersonName(e.target.value)} />
-        )}
-
-        {identity === "body" && (
-          <div className="mb-4 space-y-3">
-            <div className="flex gap-2">
-              {(["archdeaconry", "parish", "church"] as const).map((b) => (
-                <button key={b} type="button" onClick={() => setBodyType(b)}
-                        className={`px-3 py-1.5 rounded text-sm border capitalize ${
-                          bodyType === b ? "bg-[#800000] text-white border-[#800000]" : "bg-white"}`}>
-                  {b}
-                </button>
-              ))}
-            </div>
-            <input className="border rounded px-3 py-2 w-full"
-                   placeholder={
-                     bodyType === "church"
-                       ? "Full church name — e.g. Bishop Akinyele Memorial Anglican Church"
-                       : `Full ${bodyType} name (no abbreviations)`}
-                   value={bodyName} onChange={(e) => setBodyName(e.target.value)} />
-            {bodyType === "church" && (
-              <input className="border rounded px-3 py-2 w-full"
-                     placeholder="Community / location — e.g. Akinyele"
-                     value={community} onChange={(e) => setCommunity(e.target.value)} />
-            )}
-          </div>
-        )}
-
-        {message && <p className="text-sm mb-3">{message}</p>}
-
-        <button onClick={createVouchers} disabled={loading}
-                className="bg-[#800000] text-white px-5 py-2 rounded w-full">
-          {loading ? "Generating…" : "Generate vouchers"}
+      <section className="mb-6 grid gap-4 rounded-xl border bg-white p-5 shadow-sm sm:grid-cols-[1fr_150px_auto] sm:items-end">
+        <label className="grid gap-1 text-sm font-medium">
+          Published programme
+          <ThemedSelect className="w-full rounded border px-3 py-2" value={programmeId}
+            onChange={(event) => { setProgrammeId(event.target.value); setMessage(""); }}>
+            {programmes.length === 0 && <option value="">No published programmes</option>}
+            {programmes.map((programme) => <option key={programme.id} value={programme.id}>{programme.title}</option>)}
+          </ThemedSelect>
+        </label>
+        <label className="grid gap-1 text-sm font-medium">
+          Number of codes
+          <input className="w-full rounded border px-3 py-2" type="number" min={1} max={500}
+            value={count} onChange={(event) => setCount(Number(event.target.value))} />
+        </label>
+        <button onClick={createVouchers} disabled={saving || loading || !programmeId}
+          className="rounded bg-[#800000] px-4 py-2 font-semibold text-white disabled:opacity-60">
+          {saving ? "Generating..." : "Generate codes"}
         </button>
-      </div>
+        {message && <p className="text-sm text-gray-700 sm:col-span-3" role="status">{message}</p>}
+        {programmeId && !programmes.find((item) => item.id === programmeId)?.attending_tag_url && (
+          <p className="text-sm text-amber-800 sm:col-span-3">This programme needs a pass-card image before vouchers can unlock downloads.</p>
+        )}
+      </section>
 
-      {generated.length > 0 && (
-        <div className="mt-6 border rounded-lg p-5 bg-white shadow-sm">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold">Generated ({generated.length})</h3>
-            <div className="flex gap-2">
-              <button onClick={copyAll} className="text-sm underline">Copy</button>
-              <button onClick={downloadCSV} className="text-sm underline">Download CSV</button>
-            </div>
-          </div>
-          <div className="bg-gray-50 rounded max-h-72 overflow-y-auto font-mono text-sm">
-            {generated.map((c, i) => (
-              <div key={i} className="px-3 py-1.5 border-b last:border-0">{c}</div>
-            ))}
-          </div>
+      <section className="rounded-xl border bg-white p-5 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Generated codes <span className="text-sm font-normal text-gray-500">({vouchers.length})</span></h2>
+          <button onClick={downloadCSV} disabled={!vouchers.length} className="rounded border px-3 py-2 text-sm font-semibold disabled:opacity-50">
+            Download CSV
+          </button>
         </div>
-      )}
+        {loading ? <p className="text-sm text-gray-500">Loading programmes...</p>
+          : !programmeId ? <p className="text-sm text-gray-500">Publish a programme to generate its pass vouchers.</p>
+            : vouchers.length === 0 ? <p className="text-sm text-gray-500">No pass vouchers generated for this programme yet.</p>
+              : <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] border-collapse text-left text-sm">
+                  <thead><tr className="border-b bg-gray-50"><th className="px-3 py-2">Code</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Created</th></tr></thead>
+                  <tbody>{vouchers.map((voucher) => (
+                    <tr key={voucher.id} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-mono font-semibold">{voucher.code}</td>
+                      <td className="px-3 py-2">{voucher.used ? "Used" : "Available"}</td>
+                      <td className="px-3 py-2 text-gray-600">{voucher.created_at ? new Date(voucher.created_at).toLocaleDateString("en-NG") : "—"}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>}
+      </section>
     </div>
   );
 }
-
-

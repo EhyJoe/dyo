@@ -95,7 +95,7 @@ export default function AdminProducts() {
       productId = data.id;
     }
 
-    // Replace variants for this product wholesale â€” simplest correct approach.
+    // Replace variants for this product wholesale — simplest correct approach.
     if (productId) {
       await mongo.from("product_variants").delete().eq("product_id", productId);
       if (form.variants.length) {
@@ -121,7 +121,7 @@ export default function AdminProducts() {
   }
 
   /**
-   * Hard delete. Refuses if the item has been ordered â€” past receipts point at
+   * Hard delete. Refuses if the item has been ordered — past receipts point at
    * it, and losing that breaks financial history. In that case, hide it instead.
    */
   async function remove(p: any) {
@@ -136,7 +136,7 @@ export default function AdminProducts() {
     setDeletingId(null);
 
     if (error) {
-      setMessage(`"${p.name}" has been ordered before, so it can't be deleted â€” past receipts point at it. Use "Hide from store" instead.`);
+      setMessage(`"${p.name}" has been ordered before, so it can't be deleted — past receipts point at it. Use "Hide from store" instead.`);
       void load();
       return;
     }
@@ -149,7 +149,7 @@ export default function AdminProducts() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-1">Store items</h1>
-      <p className="text-gray-600 mb-6">Polos, wristbands, books â€” anything the organization sells.</p>
+      <p className="text-gray-600 mb-6">Polos, wristbands, books — anything the organization sells.</p>
 
       {/* editor */}
       <div className="border rounded-lg p-5 mb-10 bg-white shadow-sm">
@@ -177,13 +177,13 @@ export default function AdminProducts() {
                 <img src={img} alt="" className="w-20 h-20 object-cover rounded" />
                 <button onClick={() => set("images", form.images.filter((_, idx) => idx !== i))}
                         className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 text-xs">
-                  Ã—
+                  ×
                 </button>
               </div>
             ))}
           </div>
           <input type="file" accept="image/*" onChange={(e) => addImage(e.target.files?.[0])} />
-          {uploading && <p className="text-xs mt-1">Uploadingâ€¦</p>}
+          {uploading && <p className="text-xs mt-1">Uploading…</p>}
         </div>
 
         {/* variants */}
@@ -217,7 +217,7 @@ export default function AdminProducts() {
         <div className="flex gap-3 mt-4">
           <button onClick={save} disabled={saving}
                   className="bg-[#800000] text-white px-5 py-2 rounded">
-            {saving ? "Savingâ€¦" : editing ? "Save changes" : "Add item"}
+            {saving ? "Saving…" : editing ? "Save changes" : "Add item"}
           </button>
           {editing && (
             <button onClick={() => { setEditing(null); setForm({ ...BLANK }); }}
@@ -238,7 +238,7 @@ export default function AdminProducts() {
                 <p className="font-semibold">{p.name}</p>
                 <p className="text-sm text-gray-500">
                   {naira(p.price_naira)}
-                  {p.product_variants?.length ? ` Â· ${stock} in stock` : ""}
+                  {p.product_variants?.length ? ` · ${stock} in stock` : ""}
                 </p>
               </div>
               <button onClick={() => toggleActive(p)}
@@ -249,7 +249,7 @@ export default function AdminProducts() {
               <button onClick={() => startEdit(p)} className="underline text-sm">Edit</button>
               <button onClick={() => remove(p)} disabled={deletingId === p.id}
                       className="text-red-600 text-sm">
-                {deletingId === p.id ? "Deletingâ€¦" : "Delete"}
+                {deletingId === p.id ? "Deleting…" : "Delete"}
               </button>
             </div>
           );

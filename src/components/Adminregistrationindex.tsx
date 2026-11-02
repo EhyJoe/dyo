@@ -9,7 +9,7 @@ import { formatEventDate } from "../lib/programmeWindow";
  * Registrations, by programme.
  *
  * The nav needs somewhere to land when nobody has picked a programme yet —
- * without this, /admin/registrations is a dead link and the only way in is
+ * without this, /private/registrations is a dead link and the only way in is
  * through the programmes list.
  */
 export default function AdminRegistrationsIndex() {
@@ -74,14 +74,14 @@ export default function AdminRegistrationsIndex() {
           <h1>Registrations</h1>
           <p>Pick a programme to see everyone registered, check people in, or export the list.</p>
         </div>
-        <Link to="/admin/programmes" className="a-btn">New programme</Link>
+        <Link to="/private/programmes" className="a-btn">New programme</Link>
       </div>
 
       {rows.length === 0 ? (
         <div className="a-empty">
           <h3>No programmes yet</h3>
           <p>Registrations appear here once a programme exists.</p>
-          <Link to="/admin/programmes" className="a-btn">Create a programme</Link>
+          <Link to="/private/programmes" className="a-btn">Create a programme</Link>
         </div>
       ) : (
         <div className="table-scroll">
@@ -114,7 +114,7 @@ export default function AdminRegistrationsIndex() {
                   <td>{p.stats.total_checked_in ?? 0}</td>
                   <td>{naira(p.stats.revenue_naira ?? 0)}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
-                    <Link to={`/admin/programmes/${p.id}/registrations`}
+                    <Link to={`/private/programmes/${p.id}/registrations`}
                           className="a-btn a-btn--ghost">
                       Open →
                     </Link>

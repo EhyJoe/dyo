@@ -5,10 +5,7 @@ import { Link, useNavigate, useParams } from "@/lib/next-router";
 import { mongo } from "../lib/mongoClient";
 import { useAuth } from "./Authcontext";
 import { naira } from "../lib/currency";
-import {
-  composeAttendingCard, uploadAttendingCard, shareCard,
-  DEFAULT_CARD_CONFIG,
-} from "../lib/Attendingcard";
+import { composeAttendingCard, DEFAULT_CARD_CONFIG } from "../lib/Attendingcard";
 import Navbar from "./Navbar";
 import SiteFooter from "./Sitefooter";
 import "./Programmes.css";
@@ -24,21 +21,23 @@ interface ExtraField {
 export default function ProgrammeDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { session, profile, loading: authLoading } = useAuth();
+  const { session, profile, loading: authLoading, updateProfilePhoto } = useAuth();
 
   const [programme, setProgramme] = useState<any>(null);
   const [registration, setRegistration] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [registrationPhoto, setRegistrationPhoto] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const [cardBlob, setCardBlob] = useState<Blob | null>(null);
-  const [cardPreview, setCardPreview] = useState<string | null>(null);
 
   // Paid-programme registration: after the row is created, we ask HOW they're
   // paying before taking money. null = chooser not open.
   const [payMode, setPayMode] = useState<null | "choose" | "voucher" | "body">(null);
   const [voucherCode, setVoucherCode] = useState("");
+  const [passVoucherCode, setPassVoucherCode] = useState("");
+  const [passBusy, setPassBusy] = useState(false);
+  const [passNotice, setPassNotice] = useState("");
   const [bodyType, setBodyType] = useState<"archdeaconry" | "parish" | "church">("church");
   const [bodyName, setBodyName] = useState("");
   const [bodyCommunity, setBodyCommunity] = useState("");
@@ -54,19 +53,22 @@ export default function ProgrammeDetail() {
 
   async function load() {
     setLoading(true);
+    setRegistration(null);
+    setPassNotice("");
     const { data: prog } = await mongo
       .from("programmes").select("*").eq("slug", slug).maybeSingle();
     setProgramme(prog);
 
     if (prog && session) {
-      const { data: reg } = await mongo
-        .from("programme_registrations")
-        .select("*")
-        .eq("programme_id", prog.id)
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      setRegistration(reg);
-      if (reg?.attending_card_url) setCardPreview(reg.attending_card_url);
+      try {
+        const response = await fetch(`/api/programmes/${encodeURIComponent(slug)}/registration`, { cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        const reg = response.ok ? result.registration : null;
+        setRegistration(reg);
+        if (reg?.pass_card_unlocked) setPassNotice("Voucher accepted. Your programme pass is unlocked.");
+      } catch {
+        setNotice("Couldn't load your registration. Please refresh and try again.");
+      }
     }
     setLoading(false);
   }
@@ -106,47 +108,50 @@ export default function ProgrammeDetail() {
       setNotice(`Answer: ${missing.map((m) => m.label).join(", ")}`);
       return;
     }
-
+    if (!profile.photo_url && !registrationPhoto) {
+      setNotice("Please upload a profile photo to register for this programme.");
+      return;
+    }
     setBusy(true);
     setNotice("");
 
-    const needsPayment = programme.fee_naira > 0;
-
-    const { data, error } = await mongo
-      .from("programme_registrations")
-      .insert({
-        programme_id: programme.id,
-        user_id: session.user.id,
-        full_name: profile.full_name,
-        gender: profile.gender,
-        phone: profile.phone,
-        email: profile.email,
-        archdeaconry: profile.archdeaconry,
-        church: profile.church,
-        photo_url: profile.photo_url,
-        answers,
-        amount_naira: programme.fee_naira,
-        payment_status: needsPayment ? "pending" : "not_required",
-      })
-      .select()
-      .single();
-
+    let response: Response;
+    let result: any;
+    try {
+      if (!profile.photo_url && registrationPhoto) {
+        const photoForm = new FormData();
+        photoForm.set("photo", registrationPhoto);
+        const photoResponse = await fetch("/api/profile/photo", { method: "POST", body: photoForm });
+        const photoResult = await photoResponse.json().catch(() => ({}));
+        if (!photoResponse.ok || typeof photoResult.photo_url !== "string") {
+          throw new Error(photoResult.error ?? "We couldn't upload your photo. Please try again.");
+        }
+        updateProfilePhoto(photoResult.photo_url);
+      }
+      response = await fetch(`/api/programmes/${encodeURIComponent(slug)}/registration`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers }),
+      });
+      result = await response.json().catch(() => ({}));
+    } catch (error) {
+      setBusy(false);
+      setNotice(error instanceof Error ? error.message : "We couldn't complete your registration. Check your photo and connection, then try again.");
+      return;
+    }
     setBusy(false);
 
-    if (error) {
-      setNotice(
-        error.code === "23505"
-          ? "You're already registered for this one."
-          : "We couldn't save that. Try again.",
-      );
+    if (!response.ok) {
+      setNotice(result.error ?? "We couldn't save that. Try again.");
       void load();
       return;
     }
 
+    const data = result.registration;
     setRegistration(data);
+    setRegistrationPhoto(null);
     // Paid programme → open the "how are you paying?" chooser.
     // Free programme → nothing more to do.
-    if (needsPayment) setPayMode("choose");
+    if (programme.fee_naira > 0) setPayMode("choose");
   }
 
   /* ---------- sponsor others ---------- */
@@ -232,90 +237,72 @@ export default function ProgrammeDetail() {
     setNotice("Online registration payments are temporarily unavailable. Please contact the youth office.");
   }
 
-  /* ---------------- attendance card ---------------- */
-
-  async function makeCard() {
-    if (!programme.attending_template_url) {
-      setNotice("The attendance card for this programme isn't ready yet.");
-      return;
-    }
-
-    // The photo is the whole point of the card — say plainly what's missing
-    // and where to fix it, rather than failing quietly.
-    const photo = registration?.photo_url ?? profile?.photo_url;
-    if (!photo) {
-      setNotice("You haven't added a photo yet — add one in My account, then come back.");
-      return;
-    }
-
-    setBusy(true);
-    setNotice("");
-    try {
-      const blob = await composeAttendingCard({
-        templateUrl: programme.attending_template_url,
-        photoUrl: photo,
-        details: {
-          name: profile?.full_name ?? registration?.full_name ?? "",
-          church: registration?.church ?? profile?.church,
-          archdeaconry: registration?.archdeaconry ?? profile?.archdeaconry,
-        },
-        config: programme.card_config ?? DEFAULT_CARD_CONFIG,
-      });
-
-      const url = await uploadAttendingCard(blob, registration.id);
-      await mongo.from("programme_registrations")
-        .update({ attending_card_url: url }).eq("id", registration.id);
-
-      setCardBlob(blob);
-      setCardPreview(URL.createObjectURL(blob));
-
-      // Paid programmes: from the same photo + details, also build the printable
-      // attendance TAG from the programme's tag template, and file it so it shows
-      // in the admin "Paid programme tags" tab. One user action, two images.
-      if (programme.fee_naira > 0 && programme.attending_tag_url) {
-        try {
-          const tagBlob = await composeAttendingCard({
-            templateUrl: programme.attending_tag_url,
-            photoUrl: photo,
-            details: {
-              name: profile?.full_name ?? registration?.full_name ?? "",
-              church: registration?.church ?? profile?.church,
-              archdeaconry: registration?.archdeaconry ?? profile?.archdeaconry,
-            },
-            config: programme.tag_config ?? programme.card_config ?? DEFAULT_CARD_CONFIG,
-          });
-          const tagPath = `tag-${registration.id}.png`;
-          const { error: upErr } = await mongo.storage
-            .from("attending-cards").upload(tagPath, tagBlob, { upsert: true, contentType: "image/png" });
-          if (!upErr) {
-            const { data: pub } = mongo.storage.from("attending-cards").getPublicUrl(tagPath);
-            await mongo.from("programme_registrations")
-              .update({ attending_tag_generated_url: `${pub.publicUrl}?v=${Date.now()}` })
-              .eq("id", registration.id);
-          }
-        } catch {
-          // The tag is an admin convenience — never block the user's card on it.
-        }
-      }
-    } catch (err) {
-      setNotice(
-        (err as Error)?.message?.toLowerCase().includes("load")
-          ? "Couldn't load your photo or the flyer. Both need to be uploaded and public before the card can build."
-          : "Couldn't build the card. Try a different profile photo.",
-      );
-    }
-    setBusy(false);
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  async function share() {
-    let blob = cardBlob;
-    if (!blob && cardPreview) blob = await (await fetch(cardPreview)).blob();
-    if (!blob) return;
-    await shareCard(
-      blob,
-      `${programme.slug}-attending.png`,
-      `I will be attending ${programme.title}!`,
-    );
+  async function downloadPassCard() {
+    if (!registration?.pass_card_unlocked) return;
+    if (!programme.attending_tag_url) {
+      setPassNotice("The programme pass card isn't available yet.");
+      return;
+    }
+    const photo = registration.photo_url ?? profile?.photo_url;
+    if (!photo) {
+      setPassNotice("Add a profile photo to your account before downloading the programme pass.");
+      return;
+    }
+    setPassBusy(true);
+    setPassNotice("");
+    try {
+      const blob = await composeAttendingCard({
+        templateUrl: programme.attending_tag_url,
+        photoUrl: photo,
+        details: {
+          name: profile?.full_name ?? registration.full_name ?? "",
+          church: registration.church ?? profile?.church,
+          archdeaconry: registration.archdeaconry ?? profile?.archdeaconry,
+        },
+        config: programme.tag_config ?? programme.card_config ?? DEFAULT_CARD_CONFIG,
+      });
+      downloadBlob(blob, `${programme.slug}-programme-pass.png`);
+    } catch {
+      setPassNotice("Couldn't build the pass card. Try again or update your profile photo.");
+    } finally {
+      setPassBusy(false);
+    }
+  }
+
+  async function redeemPassVoucher() {
+    if (!registration || !passVoucherCode.trim()) {
+      setPassNotice("Enter your programme pass voucher code.");
+      return;
+    }
+    setPassBusy(true);
+    setPassNotice("");
+    try {
+      const response = await fetch("/api/programme-vouchers/redeem", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: passVoucherCode, programmeId: programme.id }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setPassNotice(result.error ?? "That code couldn't be used. Check it and try again.");
+        return;
+      }
+      setRegistration({ ...registration, pass_card_unlocked: true });
+      setPassNotice("Voucher accepted. Your programme pass is unlocked.");
+      setPassVoucherCode("");
+    } catch {
+      setPassNotice("We couldn't check that code. Please try again.");
+    } finally {
+      setPassBusy(false);
+    }
   }
 
   /* ---------------- render ---------------- */
@@ -324,8 +311,8 @@ export default function ProgrammeDetail() {
     <div className="pg-detail">
       <Navbar />
 
-      {programme.banner_url && (
-        <div className="pg-hero" style={{ backgroundImage: `url(${programme.banner_url})` }}>
+      {(programme.banner_url || programme.flyer_url) && (
+        <div className="pg-hero" style={{ backgroundImage: `url(${programme.banner_url || programme.flyer_url})` }}>
           <div className="pg-hero-inner">
             <p className="pg-eyebrow">
               {programme.starts_at
@@ -382,6 +369,17 @@ export default function ProgrammeDetail() {
               </ul>
               <Link className="pg-editlink" to="/account">Not right? Update your details</Link>
 
+              {!profile?.photo_url && (
+                <label className="pg-field">
+                  <span>Your photo *</span>
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/avif"
+                    onChange={(event) => setRegistrationPhoto(event.target.files?.[0] ?? null)} />
+                  <small>Upload a clear photo of yourself (JPG, PNG, WebP or AVIF, up to 5 MB). We'll save it to your profile.</small>
+                  {registrationPhoto && <small>Selected: {registrationPhoto.name}</small>}
+                  {!registrationPhoto && <small>A photo is required before you can register.</small>}
+                </label>
+              )}
+
               {extras.map((f) => (
                 <label key={f.key} className="pg-field">
                   <span>{f.label}{f.required && " *"}</span>
@@ -401,7 +399,8 @@ export default function ProgrammeDetail() {
                 </label>
               ))}
 
-              <button className="pg-button" onClick={register} disabled={busy || closed}>
+              <button className="pg-button" onClick={register}
+                disabled={busy || closed || (!profile?.photo_url && !registrationPhoto)}>
                 {closed ? "Registration closed"
                   : busy ? "Registering…"
                   : programme.fee_naira > 0
@@ -432,25 +431,24 @@ export default function ProgrammeDetail() {
               )}
 
               <hr />
-              <h4>Your attendance card</h4>
-              {cardPreview ? (
-                <>
-                  <img className="pg-attending-card" src={cardPreview} alt="Your attendance card" />
-                  <button className="pg-button" onClick={share}>Share it</button>
-                  <button className="pg-button pg-button--quiet" onClick={makeCard} disabled={busy}>
-                    Rebuild with my latest photo
-                  </button>
-                </>
+              <h4>Programme pass card</h4>
+              {!programme.attending_tag_url ? (
+                <p className="pg-note">The programme pass card isn't available yet.</p>
+              ) : registration.pass_card_unlocked ? (
+                <button className="pg-button" onClick={downloadPassCard} disabled={passBusy}>
+                  {passBusy ? "Preparing pass..." : "Download programme pass card"}
+                </button>
               ) : (
                 <>
-                  <p className="pg-note">
-                    We'll drop your photo into the "I will be attending" design.
-                  </p>
-                  <button className="pg-button" onClick={makeCard} disabled={busy}>
-                    {busy ? "Building…" : "Make my card"}
+                  <p className="pg-note">Use a programme voucher to unlock your pass card. Your attending card remains free.</p>
+                  <input className="pg-input" placeholder="Programme pass voucher"
+                    value={passVoucherCode} onChange={(event) => setPassVoucherCode(event.target.value.toUpperCase())} />
+                  <button className="pg-button" onClick={redeemPassVoucher} disabled={passBusy}>
+                    {passBusy ? "Checking..." : "Redeem voucher"}
                   </button>
                 </>
               )}
+              {passNotice && <p className="pg-notice" role="status">{passNotice}</p>}
             </>
           )}
 

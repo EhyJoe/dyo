@@ -517,6 +517,7 @@ body :is(h1, h2, h3, h4, h5, h6),
   padding: 24px;
   background: rgba(43, 36, 32, .48);
   backdrop-filter: blur(7px);
+  pointer-events: none;
   animation: dyo-loader-appear .18s ease-out both;
 }
 .dyo-loader-card {

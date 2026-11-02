@@ -1,5 +1,6 @@
 "use client";
-import { Navigate, useLocation } from "@/lib/next-router";
+import { useLocation, useNavigate } from "@/lib/next-router";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuth } from "./Authcontext";
 import Loading from "../../app/loading";
@@ -12,11 +13,15 @@ function Waiting() {
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const destination = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
+
+  useEffect(() => {
+    if (!loading && !session) navigate(destination, { replace: true });
+  }, [loading, session, destination, navigate]);
 
   if (loading) return <Waiting />;
-  if (!session) {
-    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
-  }
+  if (!session) return <Waiting />;
   return <>{children}</>;
 }
 
@@ -24,11 +29,15 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const { session, isAdmin, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const destination = `/login?next=${encodeURIComponent(location.pathname)}`;
+
+  useEffect(() => {
+    if (!loading && !session) navigate(destination, { replace: true });
+  }, [loading, session, destination, navigate]);
 
   if (loading) return <Waiting />;
-  if (!session) {
-    return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
-  }
+  if (!session) return <Waiting />;
   if (!isAdmin) {
     return (
       <div style={{ padding: 60, textAlign: "center" }}>

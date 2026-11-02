@@ -9,16 +9,16 @@ import * as XLSX from "xlsx";
  *
  * Kept only so the convention, village-mission and ignition data collected
  * before the restructure stays readable. New programmes are created in
- * /admin/programmes and their registrations live in one place.
+ * /private/programmes and their registrations live in one place.
  *
  * Two things were removed from the original:
  *
  *  1. Its own session check. It only asked "is anyone signed in", which every
  *     registered member now is — so it would have shown every registrant's
  *     name, phone, email and payment status to any member who found the URL.
- *     It's mounted inside the guarded /admin block instead, which checks role.
+ *     It's mounted inside the guarded /private block instead, which checks role.
  *
- *  2. Its own logout button, which pointed at /admin-login. That page is gone;
+ *  2. Its own logout button, which pointed at /private-login. That page is gone;
  *     signing out lives in the navbar now.
  *
  * Retire this file once the old rows are migrated or exported.
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
       <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-5 text-sm">
         <strong>Archive.</strong> This is data from before the site was
         restructured. New programmes and their registrations live in{" "}
-        <Link to="/admin/programmes" className="underline">Programmes</Link>.
+        <Link to="/private/programmes" className="underline">Programmes</Link>.
       </div>
 
       <h2 className="text-2xl font-bold mb-4">Previous registrations</h2>

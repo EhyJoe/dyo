@@ -15,7 +15,9 @@ function safeDataError(collection: string, operation: string, detail: unknown) {
   void detail;
   const code = typeof detail === "object" && detail !== null && "code" in detail
     ? String((detail as { code: unknown }).code)
-    : undefined;
+    : typeof detail === "object" && detail !== null && "status" in detail
+      ? String((detail as { status: unknown }).status)
+      : undefined;
   return { message: SAFE_DATA_ERROR, ...(code ? { code } : {}) };
 }
 

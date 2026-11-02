@@ -22,7 +22,6 @@ interface Product {
 
 export default function StorePage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [category, setCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const { count } = useCart();
 
@@ -37,14 +36,6 @@ export default function StorePage() {
       setLoading(false);
     })();
   }, []);
-
-  const categories = ["All", ...Array.from(
-    new Set(products.map((p) => p.category).filter(Boolean) as string[]),
-  )];
-
-  const shown = category === "All"
-    ? products
-    : products.filter((p) => p.category === category);
 
   const soldOut = (p: Product) =>
     p.product_variants.length > 0 &&
@@ -77,21 +68,9 @@ export default function StorePage() {
         </Link>
       </header>
 
-      {categories.length > 2 && (
-        <nav className="store-filters">
-          {categories.map((c) => (
-            <button key={c}
-                    className={c === category ? "is-active" : ""}
-                    onClick={() => setCategory(c)}>
-              {c}
-            </button>
-          ))}
-        </nav>
-      )}
-
       {loading ? (
         <p className="store-status">Loading the shelves…</p>
-      ) : shown.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="store-status store-empty-state">
           <span className="store-empty-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M3.5 4h2l2.1 11.2a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.2L21 8H7"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
@@ -101,7 +80,7 @@ export default function StorePage() {
         </div>
       ) : (
         <div className="store-grid">
-          {shown.map((p) => (
+          {products.map((p) => (
             <div key={p.id} className="store-card">
               {/* The image + name + price stay a link to the product page. */}
               <Link to={`/store/${p.slug}`} className="store-card-link">

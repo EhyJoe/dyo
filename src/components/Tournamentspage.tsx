@@ -157,6 +157,7 @@ export default function TournamentsPage() {
         )}
         </header>
 
+
         {/* Live */}
         {live.length > 0 && (
           <section className="tournament-section tournament-live-section">

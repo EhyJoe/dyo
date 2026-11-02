@@ -1,5 +1,6 @@
-import AdminLayout from "../../src/components/Adminlayout";
-import { RequireAdmin } from "../../src/components/Routeguards";
-export default function Layout({children}:{children:React.ReactNode}){return <RequireAdmin><AdminLayout>{children}</AdminLayout></RequireAdmin>}
+import { redirect } from "next/navigation";
 
-
+/** Keep old bookmarks working while /private becomes the admin route. */
+export default function LegacyAdminLayout() {
+  redirect("/private");
+}

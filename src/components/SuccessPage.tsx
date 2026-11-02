@@ -129,9 +129,7 @@ export default function SuccessPage() {
       return setNotice("The attendance card for this programme isn't ready yet.");
     }
     const photo = row?.photo_url ?? profile?.photo_url;
-    if (!photo) {
-      return setNotice("Add a photo to your profile and the card can be generated.");
-    }
+    if (!photo) return setNotice("Add a photo to your profile and the card can be generated.");
 
     setBusy(true);
     setNotice("");

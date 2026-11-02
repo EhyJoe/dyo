@@ -30,7 +30,7 @@ export default function Sitefooter() {
         </div>
       </div>
       <div className="home-footer-bottom">
-        <p>Â© {new Date().getFullYear()} Diocesan Youth Organization. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Diocesan Youth Organization. All rights reserved.</p>
       </div>
       </footer>
   );

@@ -258,8 +258,11 @@
   overflow: hidden; background: #fff;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
+.home-prog-button { width: 100%; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.home-prog-register-hint { display: block; margin-top: 12px; color: var(--maroon); font-size: .86rem; font-weight: 700; }
 .home-prog:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(128, 0, 0, 0.14); }
 .home-prog img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; display: block; }
+.home-prog img.home-prog-placeholder { padding: 28px; object-fit: contain; background: radial-gradient(circle, #fffdf9 0, #eee1d0 100%); }
 .home-prog-body { padding: 16px; }
 .home-prog-body h3 { margin: 4px 0 6px; font-size: 1.05rem; }
 .home-prog-date {
@@ -268,6 +271,10 @@
 }
 .home-prog-venue { margin: 0; color: var(--muted); font-size: 0.88rem; }
 .home-prog-fee { display: inline-block; margin-top: 10px; font-weight: 700; }
+.home-tournament-image { width: 100%; aspect-ratio: 4 / 3; overflow: hidden; background: #f3e9dc; }
+.home-tournament-image img { width: 100%; height: 100%; object-fit: cover; }
+.home-tournament-image.is-placeholder { display: grid; place-items: center; background: radial-gradient(circle, #fffdf9 0, #eee1d0 100%); color: var(--dyo-clay); }
+.home-tournament-image.is-placeholder svg { width: 68px; height: 68px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* store */
 
@@ -284,6 +291,10 @@
 .home-shop-image img { width: 100%; height: 100%; object-fit: cover; }
 .home-shop-name { margin: 10px 0 2px; font-weight: 600; font-size: 0.96rem; }
 .home-shop-price { margin: 0; color: var(--maroon); font-weight: 700; }
+.home-gallery-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.home-gallery-grid a { display: block; overflow: hidden; aspect-ratio: 1; border-radius: 12px; background: #eee6da; }
+.home-gallery-grid img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .25s ease; }
+.home-gallery-grid a:hover img { transform: scale(1.05); }
 
 /* updates */
 
@@ -399,6 +410,7 @@
 }
 
 @media (max-width: 560px) {
+  .home-gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .home-update { flex-direction: column; }
   .home-update img { width: 100%; height: 170px; }
   .home-hero-actions .home-btn { flex: 1; text-align: center; }

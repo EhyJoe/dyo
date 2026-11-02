@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "@/lib/next-router";
 const logo = "/assets/dyo%20logo.png";
 import { ARCHDEACONRIES } from "../lib/Constants";
+import Navbar from "./Navbar";
 import SiteFooter from "./Sitefooter";
 import "./Auth.css";
 
@@ -69,6 +70,42 @@ export default function Signup() {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
   };
 
+  const parseBirthDate = (value: string): string | null => {
+    // The calendar picker may provide ISO directly; typed/display dates use DD/MM/YYYY.
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (isoMatch) {
+      const [, yearText, monthText, dayText] = isoMatch;
+      const isoDate = new Date(Number(yearText), Number(monthText) - 1, Number(dayText));
+      if (isoDate.getFullYear() === Number(yearText) && isoDate.getMonth() === Number(monthText) - 1 && isoDate.getDate() === Number(dayText)) {
+        return `${yearText}-${monthText}-${dayText}`;
+      }
+      return null;
+    }
+    const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim());
+    if (!match) return null;
+    const [, dayText, monthText, yearText] = match;
+    const day = Number(dayText);
+    const month = Number(monthText);
+    const year = Number(yearText);
+    const date = new Date(year, month - 1, day);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return `${yearText}-${monthText}-${dayText}`;
+  };
+
+  const dobIso = parseBirthDate(form.date_of_birth);
+  const dobDate = dobIso ? new Date(`${dobIso}T00:00:00`) : null;
+  const age = dobDate ? (Date.now() - dobDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000) : -1;
+  const requiredFieldsComplete =
+    form.full_name.trim().length >= 2 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) &&
+    form.password.length >= 8 &&
+    form.confirm_password.length > 0 && form.password === form.confirm_password &&
+    form.phone.trim().length >= 7 &&
+    (form.gender === "Male" || form.gender === "Female") &&
+    !!dobDate && dobDate <= new Date() && age >= 5 && age <= 120 &&
+    !!form.archdeaconry && form.church.trim().length > 0;
+  const confirmPasswordMismatch = form.confirm_password.length > 0 && form.password !== form.confirm_password;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -80,7 +117,7 @@ export default function Signup() {
     if (!form.confirm_password) missing.push("password confirmation");
     if (form.phone.trim().length < 7) missing.push("phone number");
     if (!form.gender) missing.push("gender");
-    if (!form.date_of_birth) missing.push("date of birth");
+    if (!parseBirthDate(form.date_of_birth)) missing.push("date of birth");
     if (!form.archdeaconry) missing.push("archdeaconry");
     if (!form.church.trim()) missing.push("church");
     if (missing.length) {
@@ -96,9 +133,14 @@ export default function Signup() {
       return setError("You're offline. Reconnect and try again — nothing has been lost.");
     }
 
+    const normalizedDob = parseBirthDate(form.date_of_birth);
+    if (!normalizedDob) {
+      return setError("Enter your date of birth as DD/MM/YYYY, for example 09/04/2000.");
+    }
+
     // Sanity-check the date of birth — catch future dates and impossible years.
-    if (form.date_of_birth) {
-      const dob = new Date(`${form.date_of_birth}T00:00:00`);
+    if (normalizedDob) {
+      const dob = new Date(`${normalizedDob}T00:00:00`);
       const today = new Date();
       const age = (today.getTime() - dob.getTime()) / (365.25 * 24 * 3600 * 1000);
       if (dob > today) {
@@ -116,7 +158,15 @@ export default function Signup() {
 
     try {
       const payload = new FormData();
-      payload.set("fields", JSON.stringify({ ...form, full_name: form.full_name.trim(), email: form.email.trim().toLowerCase() }));
+      payload.set("fields", JSON.stringify({
+        ...form,
+        date_of_birth: normalizedDob,
+        full_name: form.full_name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.trim(),
+        church: form.church.trim(),
+        archdeaconry: form.archdeaconry.trim(),
+      }));
       if (photo) payload.set("photo", photo);
       const response = await withTimeout(fetch("/api/auth/signup", {
         method: "POST",
@@ -141,8 +191,10 @@ export default function Signup() {
   };
 
   return (
-    <div className="auth-page">
-      <form className="auth-card" onSubmit={submit} noValidate>
+    <>
+      <Navbar />
+      <div className="auth-page">
+        <form className="auth-card" onSubmit={submit} noValidate>
         <img src={logo} alt="Diocesan Youth Organization" className="auth-logo" />
         <h1>Create your account</h1>
 
@@ -217,13 +269,41 @@ export default function Signup() {
               <PasswordEyeIcon visible={showConfirmPassword} />
             </button>
           </div>
+          {confirmPasswordMismatch && (
+            <p className="signup-password-mismatch" role="status">
+              Confirm password doesn’t match the password yet.
+            </p>
+          )}
           <label className="signup-field-label">
             Date of birth
-            <span className="signup-field-hint">Choose your birth date from the calendar.</span>
+            <span className="signup-field-hint">Select your birth date using the calendar.</span>
           </label>
-          <input type="date" name="date_of_birth" value={form.date_of_birth}
-                 max={new Date().toISOString().split("T")[0]}
-                 onChange={set} required disabled={busy} />
+          <div className="signup-birthdate-field">
+            <input
+              className="signup-birthdate-calendar"
+              type="date"
+              name="date_of_birth_picker"
+              aria-label="Choose date of birth from calendar"
+              max={new Date().toISOString().slice(0, 10)}
+              value={parseBirthDate(form.date_of_birth) ?? ""}
+              onChange={(event) => {
+                const isoDate = event.currentTarget.value;
+                if (!isoDate) return;
+                setError("");
+                setForm((current) => ({ ...current, date_of_birth: isoDate }));
+              }}
+              disabled={busy}
+            />
+            <span className="signup-birthdate-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <rect x="3.5" y="5" width="17" height="16" rx="2" />
+                <path d="M16 3v4M8 3v4M4 10h16" />
+              </svg>
+            </span>
+            <span className="signup-birthdate-value" aria-live="polite">
+              {dobIso ? `${dobIso.slice(8, 10)}/${dobIso.slice(5, 7)}/${dobIso.slice(0, 4)}` : "DD/MM/YYYY"}
+            </span>
+          </div>
 
           <ThemedSelect name="archdeaconry" value={form.archdeaconry} required disabled={busy}
                         onChange={(e) => { setError(""); setForm((current) => ({ ...current, archdeaconry: e.target.value })); }}>
@@ -235,8 +315,16 @@ export default function Signup() {
 
           <input name="occupation" placeholder="Occupation" value={form.occupation}
                  onChange={set} disabled={busy} />
-          <input name="educational_qualification" placeholder="Highest qualification"
-                 value={form.educational_qualification} onChange={set} disabled={busy} />
+          <ThemedSelect name="educational_qualification" value={form.educational_qualification}
+                        onChange={set} disabled={busy}>
+            <option value="">Highest qualification (optional)</option>
+            <option value="Msc">Msc</option>
+            <option value="Bsc">Bsc</option>
+            <option value="HND">HND</option>
+            <option value="OND">OND</option>
+            <option value="SSCE">SSCE</option>
+            <option value="Others">Others</option>
+          </ThemedSelect>
         </div>
 
         <input name="address" placeholder="Address" value={form.address}
@@ -244,16 +332,17 @@ export default function Signup() {
 
         {error && <p ref={errorRef} className="auth-error" role="alert" tabIndex={-1}>{error}</p>}
 
-        <button type="submit" disabled={busy}>
+        <button type="submit" disabled={busy || !requiredFieldsComplete}>
           {busy ? "Creating your account…" : "Create account"}
         </button>
 
         <p className="auth-alt">
           Already have an account? <Link to={`/login?next=${encodeURIComponent(next)}`}>Sign in</Link>
         </p>
-      </form>
-      <SiteFooter />
-    </div>
+        </form>
+        <SiteFooter />
+      </div>
+    </>
   );
 }
 

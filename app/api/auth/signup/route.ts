@@ -3,6 +3,7 @@ import { hash } from "bcryptjs";
 import { GridFSBucket, ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
+import { sendWelcomeEmail } from "@/lib/transactional-email";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,7 +39,6 @@ async function savePhoto(db: Awaited<ReturnType<typeof getDatabase>>, file: File
 
 export async function POST(request: Request) {
   let uploadedPhotoUrl: string | null = null;
-  let createdUserId: string | null = null;
   try {
     const contentType = request.headers.get("content-type") ?? "";
     let input: Record<string, unknown>;
@@ -64,8 +64,34 @@ export async function POST(request: Request) {
     const fullName = String(input.full_name ?? "").trim();
     const email = String(input.email ?? "").trim().toLowerCase();
     const password = String(input.password ?? "");
-    if (fullName.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || password.length < 8) {
-      return NextResponse.json({ error: "Enter a valid name, email and password (8 characters minimum)." }, { status: 400 });
+    const phone = String(input.phone ?? "").trim();
+    const gender = String(input.gender ?? "").trim();
+    const rawDateOfBirth = String(input.date_of_birth ?? "").trim();
+    const dobParts = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(rawDateOfBirth);
+    const dateOfBirth = dobParts ? `${dobParts[3]}-${dobParts[2]}-${dobParts[1]}` : rawDateOfBirth;
+    const archdeaconry = String(input.archdeaconry ?? "").trim();
+    const church = String(input.church ?? "").trim();
+    const isoDobParts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth);
+    const dobYear = isoDobParts ? Number(isoDobParts[1]) : 0;
+    const dobMonth = isoDobParts ? Number(isoDobParts[2]) : 0;
+    const dobDay = isoDobParts ? Number(isoDobParts[3]) : 0;
+    const dobUtc = new Date(Date.UTC(dobYear, dobMonth - 1, dobDay));
+    const validDob = !!isoDobParts
+      && dobUtc.getUTCFullYear() === dobYear
+      && dobUtc.getUTCMonth() === dobMonth - 1
+      && dobUtc.getUTCDate() === dobDay;
+    const invalidFields = [
+      ...(fullName.length < 2 ? ["full name"] : []),
+      ...(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? ["email"] : []),
+      ...(password.length < 8 ? ["password (at least 8 characters)"] : []),
+      ...(phone.length < 7 ? ["phone number"] : []),
+      ...(!["Male", "Female"].includes(gender) ? ["gender"] : []),
+      ...(!validDob ? ["date of birth"] : []),
+      ...(!archdeaconry ? ["archdeaconry"] : []),
+      ...(!church ? ["church"] : []),
+    ];
+    if (invalidFields.length) {
+      return NextResponse.json({ error: `Please check the required field${invalidFields.length === 1 ? "" : "s"}: ${invalidFields.join(", ")}.` }, { status: 400 });
     }
 
     const db = await getDatabase();
@@ -76,7 +102,6 @@ export async function POST(request: Request) {
     }
 
     const profileId = new ObjectId();
-    createdUserId = profileId.toHexString();
     const now = new Date().toISOString();
     const passwordHash = await hash(password, 12);
     await users.insertOne({ _id: profileId, email, password_hash: passwordHash, created_at: now, updated_at: now });
@@ -87,10 +112,10 @@ export async function POST(request: Request) {
         id: profileId.toHexString(),
         email,
         full_name: fullName,
-        gender: input.gender || null,
-        date_of_birth: input.date_of_birth || null,
-        archdeaconry: input.archdeaconry || null,
-        church: String(input.church ?? "").trim() || null,
+        gender,
+        date_of_birth: dateOfBirth,
+        archdeaconry,
+        church,
         occupation: String(input.occupation ?? "").trim() || null,
         educational_qualification: String(input.educational_qualification ?? "").trim() || null,
         address: String(input.address ?? "").trim() || null,
@@ -112,6 +137,12 @@ export async function POST(request: Request) {
       throw error;
     }
 
+    try {
+      await sendWelcomeEmail(email, fullName);
+    } catch (error) {
+      // Account creation must remain successful if the email provider is temporarily unavailable.
+      console.error("Welcome email could not be sent", error);
+    }
     return NextResponse.json({ user: { id: profileId.toHexString(), email } }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "PHOTO_INVALID") {

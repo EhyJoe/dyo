@@ -1,10 +1,11 @@
 "use client";
 
 import { Children, Fragment, isValidElement, useEffect, useId, useMemo, useRef, useState } from "react";
-import type { ChangeEventHandler, CSSProperties, ReactNode, SelectHTMLAttributes } from "react";
+import type { ChangeEventHandler, CSSProperties, ReactElement, ReactNode, SelectHTMLAttributes } from "react";
 import "./ThemedSelect.css";
 
 type Choice = { value: string; label: ReactNode; text: string; disabled: boolean; group?: string };
+type SelectChildProps = { children?: ReactNode; value?: string | number; disabled?: boolean; label?: string };
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange"> & {
   onChange?: ChangeEventHandler<HTMLSelectElement>;
 };
@@ -20,18 +21,19 @@ function textOf(node: ReactNode): string {
 function collectChoices(children: ReactNode, inheritedDisabled = false, group?: string): Choice[] {
   const choices: Choice[] = [];
   Children.forEach(children, (child) => {
-    if (!isValidElement<any>(child)) return;
-    if (child.type === Fragment) {
-      choices.push(...collectChoices(child.props.children, inheritedDisabled, group));
-    } else if (child.type === "optgroup") {
-      choices.push(...collectChoices(child.props.children, inheritedDisabled || !!child.props.disabled, child.props.label));
-    } else if (child.type === "option") {
-      const text = textOf(child.props.children);
+    if (!isValidElement<SelectChildProps>(child)) return;
+    const element = child as ReactElement<SelectChildProps>;
+    if (element.type === Fragment) {
+      choices.push(...collectChoices(element.props.children, inheritedDisabled, group));
+    } else if (element.type === "optgroup") {
+      choices.push(...collectChoices(element.props.children, inheritedDisabled || !!element.props.disabled, element.props.label));
+    } else if (element.type === "option") {
+      const text = textOf(element.props.children);
       choices.push({
-        value: String(child.props.value ?? text),
-        label: child.props.children,
+        value: String(element.props.value ?? text),
+        label: element.props.children,
         text,
-        disabled: inheritedDisabled || !!child.props.disabled,
+        disabled: inheritedDisabled || !!element.props.disabled,
         group,
       });
     }
@@ -49,6 +51,9 @@ export default function ThemedSelect({
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [uncontrolledValue, setUncontrolledValue] = useState(String(defaultValue ?? ""));
+  // JSX children can include options loaded asynchronously (for example the
+  // archdeaconry list in the admin programme editor). Recompute from their
+  // rendered contents so the custom menu reflects options when data arrives.
   const choices = useMemo(() => collectChoices(children), [children]);
   const currentValue = value === undefined ? uncontrolledValue : String(value);
   const selected = choices.find((choice) => choice.value === currentValue);
@@ -134,7 +139,7 @@ export default function ThemedSelect({
         onClick={() => open ? setOpen(false) : openAtSelected()}
         onKeyDown={handleKeyDown}
       >
-        <span>{selectedLabel}</span>
+        <span className={currentValue === "" ? "is-placeholder" : "is-value"}>{selectedLabel}</span>
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3.5 6 4.5 4.5L12.5 6" /></svg>
       </button>
       <select

@@ -11,7 +11,7 @@ import { trackPageView } from "../lib/trackView";
 export default function PageTracker() {
   const location = useLocation();
   useEffect(() => {
-    if (location.pathname.startsWith("/admin")) return;  // don't track admin
+    if (location.pathname.startsWith("/private")) return;  // don't track admin
     trackPageView(location.pathname);
   }, [location.pathname]);
   return null;

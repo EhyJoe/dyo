@@ -1,5 +1,3 @@
-import { mongo } from "./mongoClient";
-
 const slugifyFilename = (name: string) =>
   name.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "");
 
@@ -9,17 +7,25 @@ export async function uploadPublicFile(
   file: File,
   folder = "",
 ): Promise<string> {
-  const path = `${folder ? `${folder}/` : ""}${Date.now()}-${slugifyFilename(file.name)}`;
-
-  const { error } = await mongo.storage
-    .from(bucket)
-    .upload(path, file, { cacheControl: "31536000", upsert: false });
-
-  if (error) {
+  const form = new FormData();
+  form.set("file", file, `${folder ? `${folder}-` : ""}${Date.now()}-${slugifyFilename(file.name)}`);
+  const folderKind = folder.split("/")[0].toLowerCase();
+  const section = folderKind === "pages" ? "pages"
+    : folderKind === "leadership" ? "leadership"
+      : folderKind === "announcements" ? "announcements"
+        : folderKind === "carousel" ? "carousel"
+          : folderKind === "gallery" ? "gallery"
+            : folderKind === "archdeaconry" ? (folder.includes("/albums") ? "gallery" : "archdeaconries")
+            : folderKind === "blog" ? "blog"
+              : folderKind === "tournaments" ? "tournaments"
+                : bucket === "product-images" ? "store" : "programmes";
+  form.set("section", section);
+  const response = await fetch("/api/media", { method: "POST", body: form });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || typeof result.url !== "string") {
     throw new Error("We couldn't upload that file. Please try again.");
   }
-
-  return mongo.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+  return result.url;
 }
 
 /** Turns a title into a URL slug, e.g. "Family Weekend 2026" → "family-weekend-2026". */

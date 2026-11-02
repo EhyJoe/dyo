@@ -7,7 +7,7 @@ import SiteFooter from "./Sitefooter";
 import "./Content.css";
 
 /**
- * Renders a custom page created in /admin/pages at /p/:slug.
+ * Renders a custom page created in /private/pages at /p/:slug.
  *
  * This is what lets an admin add, say, an "About us" or "Constitution" page
  * to the site without anyone touching the code. The body is stored as plain

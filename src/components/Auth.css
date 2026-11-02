@@ -182,6 +182,19 @@
   line-height: 1.55;
   margin: 16px 0 0;
 }
+.auth-success {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #8ab99a;
+  border-radius: 9px;
+  color: #205a36;
+  background: #effaf2;
+  font-weight: 600;
+  line-height: 1.5;
+}
 
 .auth-alt {
   text-align: center;
@@ -190,6 +203,66 @@
   margin: 20px 0 0;
 }
 .auth-alt a { color: var(--gold); font-weight: 600; }
+
+.reset-success-card {
+  text-align: center;
+  animation: reset-success-enter 520ms cubic-bezier(.2,.8,.2,1) both;
+}
+.reset-success-mark {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  margin: 0 auto 20px;
+  border: 1px solid rgba(255, 215, 0, .5);
+  border-radius: 50%;
+  background: rgba(255, 215, 0, .12);
+  color: var(--gold);
+  animation: reset-success-pop 650ms 120ms cubic-bezier(.2,1.4,.4,1) both;
+}
+.reset-success-mark svg { width: 42px; height: 42px; }
+.reset-success-mark path {
+  stroke: currentColor;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 32;
+  stroke-dashoffset: 32;
+  animation: reset-success-draw 420ms 420ms ease-out forwards;
+}
+.reset-success-eyebrow { margin-bottom: 8px; }
+.reset-success-card h1 { margin-bottom: 10px; }
+.reset-success-card .auth-sub { margin-bottom: 24px; }
+.reset-success-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: var(--gold);
+  color: var(--maroon-dark);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 160ms ease, background 160ms ease;
+}
+.reset-success-button:hover { background: #f0c800; transform: translateY(-1px); }
+.reset-success-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@keyframes reset-success-enter {
+  from { opacity: 0; transform: translateY(16px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes reset-success-pop {
+  from { opacity: 0; transform: scale(.55); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes reset-success-draw { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .reset-success-card, .reset-success-mark, .reset-success-mark path {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+  }
+}
 
 @media (max-width: 560px) {
   .auth-card { padding: 28px 20px; }
@@ -256,6 +329,72 @@
 }
 .signup-field-hint {
   display: block; font-weight: 400; color: #6b5f5f; font-size: 0.76rem; margin-top: 1px;
+}
+
+.signup-password-mismatch {
+  grid-column: 1 / -1;
+  margin: -0.45rem 0 0;
+  color: #c62828;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.signup-birthdate-field {
+  position: relative;
+  min-width: 0;
+  min-height: 48px;
+}
+
+.signup-birthdate-calendar {
+  width: 100%;
+  height: 48px;
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  cursor: pointer;
+}
+
+.signup-birthdate-calendar::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.signup-birthdate-value {
+  position: absolute;
+  inset: 0 3rem 0 0;
+  display: flex;
+  align-items: center;
+  padding: 0 0.85rem;
+  color: #312b2b;
+  pointer-events: none;
+}
+
+.signup-birthdate-value:only-child { color: #777; }
+
+.signup-birthdate-icon {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #650b14;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.signup-birthdate-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 

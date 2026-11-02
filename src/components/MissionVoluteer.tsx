@@ -2,26 +2,28 @@
 import ThemedSelect from "./ThemedSelect";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { mongo } from "../lib/mongoClient";
-import { useNavigate, Link } from "@/lib/next-router";
-const logo = "/assets/ibadan_north.png";
+import { useAuth } from "./Authcontext";
+import { ARCHDEACONRIES } from "../lib/Constants";
+import Navbar from "./Navbar";
+import SiteFooter from "./Sitefooter";
 import "./RegistrationForm.css";
 
 export default function MissionVoluteer() {
-  const navigate = useNavigate();
+  const { profile } = useAuth();
 
   const [formData, setFormData] = useState({
-    full_name: "",
-    church: "",
-    archdeaconry: "",
-    email: "",  
-    phone_number:"",
+    full_name: profile?.full_name ?? "",
+    church: profile?.church ?? "",
+    archdeaconry: profile?.archdeaconry ?? "",
+    email: profile?.email ?? "",
+    phone_number: profile?.phone ?? "",
     reason_for_registering: "",
   });
 
   const [loading, setLoading] = useState(false);
 
   const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -39,7 +41,7 @@ export default function MissionVoluteer() {
       if (error) throw error;
 
       alert("✅ Registration successful!");
-      navigate("/");
+      setFormData((prev) => ({ ...prev, reason_for_registering: "" }));
     } catch (err) {
       console.error(err);
       alert("❌ Failed to submit registration");
@@ -49,25 +51,17 @@ export default function MissionVoluteer() {
   };
 
   return (
-    <div className="registration-container">
-      {/* Navbar */}
-      <header className="navbar">
-        <div className="navbar-left">
-          <img src={logo} alt="Logo" className="logo" />
-          <h1>Diocesan Youth Organization</h1>
-        </div>
-        <nav className="navbar-links">
-          <Link to="/">Home</Link>
-          <Link to="/register"></Link>
-        </nav>
-      </header>
+    <div className="registration-container mission-registration">
+      <Navbar />
 
       {/* Form */}
       <main className="form-section">
-        <div className="form-box">
-          <h2>Village Mission Volunteers Registration</h2>
+        <div className="form-box mission-form-box">
+          <p className="mission-eyebrow">Serve with DYO</p>
+          <h2>Village mission volunteer</h2>
+          <p className="mission-intro">Share a little about yourself and why you would like to serve on a village mission.</p>
 
-          <form onSubmit={handleSubmit}>
+          <form className="mission-form" onSubmit={handleSubmit}>
             <input
               name="full_name"
               placeholder="Full Name"
@@ -92,22 +86,11 @@ export default function MissionVoluteer() {
               required
             >
               <option value="">Select Archdeaconry</option>
-              <option>Agodi</option>
-              <option>Agbrigidi</option>
-              <option>Agugu</option>
-              <option>Akinyele</option>
-              <option>Alakia/Egbeda</option>
-              <option>Alegongo</option>
-              <option>Cathedral</option>
-              <option>Igbo Elerin</option>
-              <option>Kutayi</option>
-              <option>Olorunda</option>
-              <option>Olorunsogo/Akanran</option>
-              <option>Orogun</option>
-              <option>Yemetu</option>
+              {ARCHDEACONRIES.map((name) => <option key={name} value={name}>{name}</option>)}
             </ThemedSelect>
 
             <input
+              type="email"
               name="email"
               placeholder="Email"
               value={formData.email}
@@ -124,7 +107,7 @@ export default function MissionVoluteer() {
               required
             />
 
-             <input
+             <textarea
               name="reason_for_registering"
               placeholder="Why Do You Want To Be Part Of The Village Mission?"
               value={formData.reason_for_registering}
@@ -139,9 +122,7 @@ export default function MissionVoluteer() {
         </div>
       </main>
 
-      <footer className="footer">
-        <p>© {new Date().getFullYear()} Diocesan Youth Organization</p>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

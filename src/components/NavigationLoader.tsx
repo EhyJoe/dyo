@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import { usePathname, useSearchParams } from "next/navigation";
 import Loading from "../../app/loading";
 
@@ -9,17 +8,17 @@ export default function NavigationLoader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [visible, setVisible] = useState(false);
-  const [dataLoading, setDataLoading] = useState(false);
   const routeKey = `${pathname}?${searchParams.toString()}`;
   const previousRouteKey = useRef(routeKey);
   const pendingNavigation = useRef(false);
+  const adminActionTimer = useRef<number | null>(null);
   useEffect(() => {
     const show = () => {
       pendingNavigation.current = true;
-      flushSync(() => setVisible(true));
+      setVisible(true);
     };
     const start = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const target = event.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest("a[href]");
@@ -30,25 +29,32 @@ export default function NavigationLoader() {
       if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
       show();
     };
+    const startAdminAction = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(".admin-shell")) return;
+      const action = target.closest("button, a[href], [role='button'], input[type='button'], input[type='submit']");
+      if (!action) return;
+
+      // Route links remain visible until the route commits. Same-page admin
+      // actions get a brief overlay so the click has immediate feedback.
+      setVisible(true);
+      if (adminActionTimer.current !== null) window.clearTimeout(adminActionTimer.current);
+      adminActionTimer.current = window.setTimeout(() => {
+        adminActionTimer.current = null;
+        if (!pendingNavigation.current) setVisible(false);
+      }, 700);
+    };
 
     window.addEventListener("dyo:navigation-start", show);
-    document.addEventListener("click", start, true);
+    // Bubble after the link/button's own handler has begun navigation/action.
+    document.addEventListener("click", start);
+    document.addEventListener("click", startAdminAction);
     return () => {
       window.removeEventListener("dyo:navigation-start", show);
-      document.removeEventListener("click", start, true);
+      document.removeEventListener("click", start);
+      document.removeEventListener("click", startAdminAction);
+      if (adminActionTimer.current !== null) window.clearTimeout(adminActionTimer.current);
     };
-  }, []);
-
-  useEffect(() => {
-    const syncDataLoading = () => {
-      const text = document.body.innerText;
-      const next = /Loading|Checking your account/i.test(text);
-      setDataLoading((current) => current === next ? current : next);
-    };
-    syncDataLoading();
-    const observer = new MutationObserver(syncDataLoading);
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
@@ -72,7 +78,7 @@ export default function NavigationLoader() {
     return () => window.clearTimeout(timeout);
   }, [visible]);
 
-  if (!visible && !dataLoading) return null;
+  if (!visible) return null;
 
   return <Loading />;
 }

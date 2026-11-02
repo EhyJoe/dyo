@@ -1,3 +1,4 @@
 import Sitepage from "../../../src/components/Sitepage";
+import { RequireAuth } from "../../../src/components/Routeguards";
 
-export default function Page(){return <Sitepage />}
+export default function Page(){return <RequireAuth><Sitepage /></RequireAuth>}

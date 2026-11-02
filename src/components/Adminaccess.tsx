@@ -30,9 +30,9 @@ interface Person {
 
 const SECTION_LABELS: Record<string, string> = {
   programmes: "Programmes", registrations: "Registrations", store: "Store items",
-  orders: "Orders", donations: "Donations", receipts: "Receipts", draws: "Lucky draws", vouchers: "Vouchers", tags: "Tags", announcements: "Flyers & updates",
-  gallery: "Gallery", blog: "Blog", carousel: "Slideshow", leadership: "Leadership",
-  archdeaconries: "All archdeaconries", pages: "Custom pages", members: "Members", birthdays: "Birthdays", tournaments: "Tournaments",
+  orders: "Orders", donations: "Donations", receipts: "Receipts", draws: "Lucky draws", vouchers: "Vouchers", tags: "Tags",
+  gallery: "Gallery", blog: "Blog", leadership: "Leadership",
+  archdeaconries: "All archdeaconries", members: "Members", birthdays: "Birthdays", tournaments: "Tournaments",
   overview: "Overview (dashboard)",
   audit: "Audit trail",
 };

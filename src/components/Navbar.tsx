@@ -49,12 +49,13 @@ export default function Navbar() {
   }, []);
 
   const close = () => setOpen(false);
+  const gatedHref = (href: string) => session ? href : `/login?next=${encodeURIComponent(href)}`;
 
   async function handleSignOut() {
     close();
     await signOut();
     // Send them somewhere that makes sense signed out — staying put on
-    // /account or /admin would just bounce them into a guard.
+    // /account or /private would just bounce them into a guard.
     navigate("/", { replace: true });
   }
 
@@ -84,15 +85,18 @@ export default function Navbar() {
             Programmes ▾
           </button>
           <div className="site-nav-dropmenu">
-            <NavLink to="/programmes" onClick={() => { setProgOpen(false); close(); }}>
-              All programmes
+            <NavLink to={gatedHref("/programmes")} onClick={() => { setProgOpen(false); close(); }}>
+              DYO programmes
             </NavLink>
-            <NavLink to="/mission-voluteer" onClick={() => { setProgOpen(false); close(); }}>
+            <NavLink to={gatedHref("/archdeaconries")} onClick={() => { setProgOpen(false); close(); }}>
+              Archdeaconry programmes
+            </NavLink>
+            <NavLink to={gatedHref("/mission-voluteer")} onClick={() => { setProgOpen(false); close(); }}>
               Village Missions
             </NavLink>
           </div>
         </div>
-        <NavLink to="/store" onClick={close}>Store</NavLink>
+        <NavLink to={gatedHref("/store")} onClick={close}>Store</NavLink>
         <NavLink to="/gallery" onClick={close}>Gallery</NavLink>
         <NavLink to="/blog" onClick={close}>Blog</NavLink>
         <NavLink to="/tournaments" onClick={close}>Tournaments</NavLink>
@@ -105,8 +109,11 @@ export default function Navbar() {
               Archdeaconries ▾
             </button>
             <div className="site-nav-dropmenu">
+                <NavLink to={gatedHref("/archdeaconries")} onClick={() => { setArchOpen(false); close(); }}>
+                All archdeaconries
+              </NavLink>
               {archs.map((a) => (
-                <NavLink key={a.slug} to={`/archdeaconry/${a.slug}`}
+                <NavLink key={a.slug} to={gatedHref(`/archdeaconry/${a.slug}`)}
                          onClick={() => { setArchOpen(false); close(); }}>
                   {a.name}
                 </NavLink>
@@ -116,7 +123,7 @@ export default function Navbar() {
         )}
 
         {pages.map((pg) => (
-          <NavLink key={pg.slug} to={`/p/${pg.slug}`} onClick={close}>{pg.title}</NavLink>
+          <NavLink key={pg.slug} to={gatedHref(`/p/${pg.slug}`)} onClick={close}>{pg.title}</NavLink>
         ))}
         <NavLink to="/donate" onClick={close}>Give</NavLink>
 
@@ -154,7 +161,7 @@ export default function Navbar() {
 
             <NavLink to="/account" onClick={close}>Profile</NavLink>
 
-            {isAdmin && <NavLink to="/admin" onClick={close}>Admin</NavLink>}
+            {isAdmin && <NavLink to="/private" onClick={close}>Admin</NavLink>}
 
             <button type="button" className="site-nav-signout" onClick={handleSignOut}>
               Sign out

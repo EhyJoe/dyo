@@ -44,6 +44,7 @@
 .content-head p { color: var(--muted); margin: 10px 0 0; max-width: 52ch; }
 
 .content-body { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+.archdeaconry-card-placeholder { display: grid; place-items: center; min-height: 180px; background: linear-gradient(135deg, #4b0d16, #a75534); color: #f6d993; font: 600 2.5rem Georgia, serif; letter-spacing: .12em; }
 
 .content-status { text-align: center; padding: 70px 20px; color: var(--muted); }
 .content-status h2 { font-family: Newsreader, Georgia, serif; color: var(--ink); }
@@ -182,6 +183,7 @@
 }
 .blog-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(128, 0, 0, 0.12); }
 .blog-card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; }
+.blog-card img.programme-card-placeholder { padding: 24px; object-fit: contain; background: radial-gradient(circle, #fffdf9 0, #eee1d0 100%); }
 .blog-card-body { padding: 16px 17px 20px; }
 .blog-card h3 {
   font-family: Newsreader, Georgia, serif;

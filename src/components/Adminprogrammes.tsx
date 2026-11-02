@@ -1,6 +1,7 @@
 "use client";
 import ThemedSelect from "./ThemedSelect";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "@/lib/next-router";
 import { mongo } from "./../lib/mongoClient";
 import { slugify, uploadPublicFile } from "./../lib/Storage";
 import { naira } from "./../lib/currency";
@@ -12,15 +13,18 @@ interface ExtraField {
 }
 
 const BLANK = {
-  title: "", tagline: "", description: "", venue: "",
+  title: "", tagline: "", description: "", venue: "", programme_type: "dyo",
   starts_at: "", ends_at: "", registration_closes_at: "",
   is_free: true, fee_naira: 0, access_code: "", capacity: "", is_published: false,
-  banner_url: "", flyer_url: "", attending_template_url: "", attending_tag_url: "",
+  flyer_url: "", attending_template_url: "", attending_tag_url: "",
   extra_fields: [] as ExtraField[],
 };
 
 export default function AdminProgrammes() {
+  const [params] = useSearchParams();
   const { profile } = useAuth();
+  const category = profile?.role === "archdeaconry_admin" || params.get("type") === "archdeaconry"
+    ? "archdeaconry" : "dyo";
   const [programmes, setProgrammes] = useState<any[]>([]);
   const [stats, setStats] = useState<Record<string, any>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -29,6 +33,8 @@ export default function AdminProgrammes() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [programmeArchSlug, setProgrammeArchSlug] = useState("");
+  const [archdeaconries, setArchdeaconries] = useState<{ slug: string; name: string }[]>([]);
 
   // Archdeaconry scope: an archdeaconry admin (or a super admin viewing via
   // ?arch=) is limited to one archdeaconry's programmes, both in the list and
@@ -54,7 +60,11 @@ export default function AdminProgrammes() {
     })();
   }, [isArchAdmin, profile?.managed_archdeaconry, scopeSlug]);
 
-  useEffect(() => { void load(); }, [scopeSlug]);
+  useEffect(() => { void load(); }, [scopeSlug, category]);
+  useEffect(() => {
+    void mongo.from("archdeaconries").select("slug, name").order("sort_order", { ascending: true })
+      .then(({ data }) => setArchdeaconries(data ?? []));
+  }, []);
 
   async function load() {
     // An archdeaconry admin must be scoped. If their slug hasn't resolved yet,
@@ -63,6 +73,8 @@ export default function AdminProgrammes() {
     if (isArchAdmin && !scopeSlug) { setProgrammes([]); return; }
 
     let q = mongo.from("programmes").select("*").order("starts_at", { ascending: false });
+    if (category === "archdeaconry") q = q.neq("archdeaconry_slug", null);
+    else q = q.or("programme_type.eq.dyo,programme_type.is.null").is("archdeaconry_slug", null);
     // Archdeaconry-scoped admins only ever see their own programmes.
     if (scopeSlug) q = q.eq("archdeaconry_slug", scopeSlug);
     const [{ data: progs }, { data: st }] = await Promise.all([
@@ -75,7 +87,7 @@ export default function AdminProgrammes() {
 
   const set = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
 
-  async function handleUpload(field: "banner_url" | "flyer_url" | "attending_template_url" | "attending_tag_url",
+  async function handleUpload(field: "flyer_url" | "attending_template_url" | "attending_tag_url",
                               file: File | undefined) {
     if (!file) return;
     setUploading(field);
@@ -94,25 +106,30 @@ export default function AdminProgrammes() {
     setForm({
       title: p.title ?? "", tagline: p.tagline ?? "", description: p.description ?? "",
       venue: p.venue ?? "",
+      programme_type: p.programme_type ?? (p.archdeaconry_slug ? "archdeaconry" : "dyo"),
       starts_at: p.starts_at?.slice(0, 16) ?? "",
       ends_at: p.ends_at?.slice(0, 16) ?? "",
       registration_closes_at: p.registration_closes_at?.slice(0, 16) ?? "",
-      // A programme is free when its fee is zero â€” derive the toggle from the data.
+      // A programme is free when its fee is zero — derive the toggle from the data.
       is_free: !(p.fee_naira > 0),
       fee_naira: p.fee_naira ?? 0,
       access_code: p.access_code ?? "",
       capacity: p.capacity ?? "",
       is_published: p.is_published,
-      banner_url: p.banner_url ?? "", flyer_url: p.flyer_url ?? "",
+      flyer_url: p.flyer_url ?? "",
       attending_template_url: p.attending_template_url ?? "",
       attending_tag_url: p.attending_tag_url ?? "",
       extra_fields: p.extra_fields ?? [],
     });
+    setProgrammeArchSlug(p.archdeaconry_slug ?? "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function save() {
     if (!form.title.trim()) return setMessage("Give the programme a title.");
+    if (category === "archdeaconry" && !scopeSlug && !programmeArchSlug) {
+      return setMessage("Choose which archdeaconry this programme belongs to.");
+    }
     // If it's paid, insist on an actual amount rather than saving a silent zero.
     if (!form.is_free && (!form.fee_naira || Number(form.fee_naira) <= 0)) {
       return setMessage("Enter the fee, or switch it to Free.");
@@ -127,6 +144,7 @@ export default function AdminProgrammes() {
       tagline: form.tagline.trim() || null,
       description: form.description.trim() || null,
       venue: form.venue.trim() || null,
+      programme_type: isArchAdmin ? "archdeaconry" : category,
       starts_at: form.starts_at || null,
       ends_at: form.ends_at || null,
       registration_closes_at: form.registration_closes_at || null,
@@ -135,7 +153,7 @@ export default function AdminProgrammes() {
       access_code: form.is_free ? null : (form.access_code.trim() || null),
       capacity: form.capacity === "" ? null : Number(form.capacity),
       is_published: form.is_published,
-      banner_url: form.banner_url || null,
+      banner_url: null,
       flyer_url: form.flyer_url || null,
       attending_template_url: form.attending_template_url || null,
       attending_tag_url: form.attending_tag_url || null,
@@ -143,7 +161,7 @@ export default function AdminProgrammes() {
       created_by: profile?.id,
       // Tag to the archdeaconry when scoped, so the row belongs to it and the
       // manage-programmes policy permits the write.
-      ...(scopeSlug ? { archdeaconry_slug: scopeSlug } : {}),
+      ...(category === "archdeaconry" ? { archdeaconry_slug: scopeSlug || programmeArchSlug || null } : { archdeaconry_slug: null }),
     };
 
     const { error } = editing
@@ -162,6 +180,7 @@ export default function AdminProgrammes() {
     setMessage(editing ? "Programme updated." : "Programme created.");
     setForm({ ...BLANK });
     setEditing(null);
+    setProgrammeArchSlug("");
     void load();
   }
 
@@ -173,7 +192,7 @@ export default function AdminProgrammes() {
 
   /**
    * Hard delete, as chosen. A programme with registrations can't be removed
-   * while those rows point at it (foreign key), so we clear them first â€” but
+   * while those rows point at it (foreign key), so we clear them first — but
    * only after a confirm that says exactly how many will be lost, since this
    * erases who attended and what they paid.
    */
@@ -195,7 +214,7 @@ export default function AdminProgrammes() {
     setDeletingId(null);
 
     if (error) {
-      setMessage("Couldn't delete that â€” it may still be linked to store items. Unlink those first.");
+      setMessage("Couldn't delete that — it may still be linked to store items. Unlink those first.");
       return;
     }
 
@@ -217,10 +236,16 @@ export default function AdminProgrammes() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-1">Programmes</h1>
+      <h1 className="text-2xl font-bold mb-1">{category === "archdeaconry" ? "Archdeaconry programmes" : "DYO programmes"}</h1>
       <p className="text-gray-600 mb-6">
-        Create a programme here and it appears on the site for members to register.
+        Manage this section’s public listings and review registrations for each programme.
       </p>
+
+      <nav className="admin-programme-tabs" aria-label="Programme sections">
+        <a className={category === "dyo" ? "is-active" : ""} href="/private/programmes?type=dyo">DYO programmes</a>
+        <a className={category === "archdeaconry" ? "is-active" : ""} href="/private/programmes?type=archdeaconry">Archdeaconry programmes</a>
+        <a href="/private/village-missions">Village mission volunteers</a>
+      </nav>
 
       {/* ------------- editor ------------- */}
       <div className="border rounded-lg p-5 mb-10 bg-white shadow-sm">
@@ -238,6 +263,12 @@ export default function AdminProgrammes() {
           <input className="border rounded px-3 py-2" type="number"
                  placeholder="Capacity (leave blank for unlimited)"
                  value={form.capacity} onChange={(e) => set("capacity", e.target.value)} />
+          {category === "archdeaconry" && !isArchAdmin && (
+            <ThemedSelect value={programmeArchSlug} onChange={(event) => setProgrammeArchSlug(event.target.value)} required>
+              <option value="">Choose archdeaconry</option>
+              {archdeaconries.map((arch) => <option key={arch.slug} value={arch.slug}>{arch.name}</option>)}
+            </ThemedSelect>
+          )}
         </div>
 
         {/* ---- fee: free or an amount ---- */}
@@ -264,7 +295,7 @@ export default function AdminProgrammes() {
             <div className="mt-3">
               <label className="text-sm text-gray-600 block mb-1">Fee in naira</label>
               <div className="flex items-center gap-2">
-                <span className="text-lg text-gray-500">â‚¦</span>
+                <span className="text-lg text-gray-500">₦</span>
                 <input className="border rounded px-3 py-2 w-40" type="number" min={1}
                        placeholder="e.g. 5000" autoFocus
                        value={form.fee_naira || ""}
@@ -313,18 +344,14 @@ export default function AdminProgrammes() {
         {/* uploads */}
         <div className="grid md:grid-cols-3 gap-4 mt-5">
           {(() => {
-            type UF = "banner_url" | "flyer_url" | "attending_template_url" | "attending_tag_url";
+            type UF = "flyer_url" | "attending_template_url" | "attending_tag_url";
             const uploads: [UF, string, string][] = [
-              ["banner_url", "Wide banner", "Shows across the top of the programme page."],
-              ["flyer_url", "Programme flyer", "The poster people share on WhatsApp."],
+              ["flyer_url", "Programme flyer", "Shown on programme cards across the website and shareable with attendees."],
               ["attending_template_url", "\u201CI will be attending\u201D card",
                "Square PNG with a transparent window where the face goes. Everyone gets this."],
             ];
-            // Paid programmes get a 4th: the printable attendance tag.
-            if (!form.is_free) {
-              uploads.push(["attending_tag_url", "Attendance tag (paid only)",
-                "The printable tag for verified attendees. Same face-window design as the card."]);
-            }
+            uploads.push(["attending_tag_url", "Programme pass card",
+              "The pass card registrants can download after redeeming a programme voucher."]);
             return uploads;
           })().map(([field, label, hint]) => (
             <div key={field} className="border rounded p-3">
@@ -335,7 +362,7 @@ export default function AdminProgrammes() {
               )}
               <input type="file" accept="image/*"
                      onChange={(e) => handleUpload(field, e.target.files?.[0])} />
-              {uploading === field && <p className="text-xs mt-1">Uploadingâ€¦</p>}
+              {uploading === field && <p className="text-xs mt-1">Uploading…</p>}
             </div>
           ))}
         </div>
@@ -383,7 +410,7 @@ export default function AdminProgrammes() {
         <label className="flex items-center gap-2 mt-5 text-sm">
           <input type="checkbox" checked={form.is_published}
                  onChange={(e) => set("is_published", e.target.checked)} />
-          Publish it â€” members can see and register straight away
+          Publish it — members can see and register straight away
         </label>
 
         {message && <p className="mt-3 text-sm">{message}</p>}
@@ -391,10 +418,10 @@ export default function AdminProgrammes() {
         <div className="flex gap-3 mt-4">
           <button onClick={save} disabled={saving}
                   className="bg-[#800000] text-white px-5 py-2 rounded">
-            {saving ? "Savingâ€¦" : editing ? "Save changes" : "Create programme"}
+            {saving ? "Saving…" : editing ? "Save changes" : "Create programme"}
           </button>
           {editing && (
-            <button onClick={() => { setEditing(null); setForm({ ...BLANK }); }}
+            <button onClick={() => { setEditing(null); setForm({ ...BLANK }); setProgrammeArchSlug(""); }}
                     className="px-5 py-2 rounded border">
               Cancel
             </button>
@@ -403,7 +430,7 @@ export default function AdminProgrammes() {
       </div>
 
       {/* ------------- list ------------- */}
-      <h2 className="font-semibold mb-3">All programmes</h2>
+      <h2 className="font-semibold mb-3">{category === "archdeaconry" ? "Archdeaconry programmes" : "DYO programmes"}</h2>
       <div className="grid gap-3">
         {programmes.map((p) => {
           const s = stats[p.id] ?? {};
@@ -413,12 +440,12 @@ export default function AdminProgrammes() {
                 <p className="font-semibold">{p.title}</p>
                 <p className="text-sm text-gray-500">
                   {p.starts_at ? new Date(p.starts_at).toLocaleString("en-NG") : "No date set"}
-                  {" Â· "}{p.fee_naira > 0 ? naira(p.fee_naira) : "Free"}
+                  {" · "}{p.fee_naira > 0 ? naira(p.fee_naira) : "Free"}
                 </p>
               </div>
               <div className="text-sm text-gray-700">
-                {s.total_registered ?? 0} registered Â· {s.total_paid ?? 0} paid
-                {s.revenue_naira ? ` Â· ${naira(s.revenue_naira)}` : ""}
+                {s.total_registered ?? 0} registered · {s.total_paid ?? 0} paid
+                {s.revenue_naira ? ` · ${naira(s.revenue_naira)}` : ""}
               </div>
               <button onClick={() => togglePublish(p)}
                       className={`px-3 py-1 rounded text-sm ${
@@ -426,12 +453,12 @@ export default function AdminProgrammes() {
                 {p.is_published ? "Live" : "Draft"}
               </button>
               <button onClick={() => startEdit(p)} className="underline text-sm">Edit</button>
-              <a className="underline text-sm" href={`/admin/programmes/${p.id}/registrations`}>
+              <a className="underline text-sm" href={`/private/programmes/${p.id}/registrations`}>
                 Registrations
               </a>
               <button onClick={() => remove(p)} disabled={deletingId === p.id}
                       className="text-red-600 text-sm">
-                {deletingId === p.id ? "Deletingâ€¦" : "Delete"}
+                {deletingId === p.id ? "Deleting…" : "Delete"}
               </button>
             </div>
           );

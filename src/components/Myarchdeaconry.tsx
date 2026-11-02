@@ -110,7 +110,7 @@ export default function MyArchdeaconry() {
       await mongo.from("gallery_images").insert(
         urls.map((url) => ({
           image_url: url, album_id: album.id,
-          album: albTitle.trim(), archdeaconry_slug: slug,
+          album: albTitle.trim(), archdeaconry_slug: slug, is_published: true,
         })),
       );
 
@@ -307,7 +307,7 @@ export default function MyArchdeaconry() {
             Create programmes tagged to {arch?.name}. They appear on your page and in
             the main programmes list.
           </p>
-          <a className="a-btn" href={`/admin/programmes?arch=${slug}`}>
+          <a className="a-btn" href={`/private/programmes?arch=${slug}`}>
             Open the programme editor
           </a>
           <div style={{ marginTop: 18, display: "grid", gap: 8 }}>

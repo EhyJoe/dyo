@@ -29,6 +29,8 @@ export default function ProgrammesPage() {
         .from("programmes")
         .select("*")
         .eq("is_published", true)
+        .or("programme_type.eq.dyo,programme_type.is.null")
+        .is("archdeaconry_slug", null)
         .order("starts_at", { ascending: true, nullsFirst: false });
       setProgrammes(data ?? []);
       setLoading(false);
@@ -61,10 +63,10 @@ export default function ProgrammesPage() {
       <header className="pg-list-head">
         <div className="pg-list-intro">
           <p className="pg-eyebrow">Ibadan North Diocese</p>
-          <h1>Our programmes</h1>
+          <h1>DYO programmes</h1>
           <p>
             Everything the youth organization runs through the year. Registration
-            for each one opens 60 days before it happens.
+            for each one opens before it happens.
           </p>
         </div>
       </header>
@@ -98,11 +100,9 @@ export default function ProgrammesPage() {
                     const w = registrationWindow(p);
                     return (
                       <article key={p.id} className="pg-row">
-                        {p.flyer_url && (
-                          <Link to={`/programmes/${p.slug}`} className="pg-row-media">
-                            <img src={p.flyer_url} alt="" loading="lazy" />
-                          </Link>
-                        )}
+                        <Link to={`/programmes/${p.slug}`} className={`pg-row-media${p.flyer_url ? "" : " pg-row-media--placeholder"}`}>
+                          <img src={p.flyer_url || "/assets/dyo%20logo.png"} alt="" loading="lazy" />
+                        </Link>
 
                         <div className="pg-row-body">
                           <p className="pg-row-date">{formatEventDate(p.starts_at)}</p>
@@ -149,7 +149,8 @@ export default function ProgrammesPage() {
                 <div className="pg-grid">
                   {past.map((p) => (
                     <Link key={p.id} to={`/programmes/${p.slug}`} className="pg-card is-past">
-                      {p.flyer_url && <img src={p.flyer_url} alt="" loading="lazy" />}
+                      <img className={p.flyer_url ? undefined : "pg-card-placeholder"}
+                        src={p.flyer_url || "/assets/dyo%20logo.png"} alt="" loading="lazy" />
                       <div className="pg-card-body">
                         <p className="pg-card-date">
                           {p.starts_at
