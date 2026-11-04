@@ -26,7 +26,8 @@ dist-ssr
 .next
 out
 
-
-.next
-out
+# Environment files — never commit real secrets
+.env
+.env.local
+.env.*.local
 

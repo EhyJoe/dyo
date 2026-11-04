@@ -7,11 +7,11 @@ import Navbar from "./Navbar";
 import SiteFooter from "./Sitefooter";
 import "./HomePage.css";
 
-const pic1 = "/assets/pic11.jpg";
-const pic2 = "/assets/pic111.jpg";
-const pic3 = "/assets/pic1.jpg";
-const pic4 = "/assets/pic1111.jpg";
-const pic5 = "/assets/pic11111.jpg";
+const pic1 = "/assets/hero%201.jpeg";
+const pic2 = "/assets/hero%202.jpeg";
+const pic3 = "/assets/hero%203.jpg";
+const pic4 = "/assets/hero%204.jpg";
+const pic5 = "/assets/hero%205.jpg";
 const bishop = "/assets/bishop.jpg";
 const chap = "/assets/chap.jpg";
 const achap = "/assets/achap.jpg";

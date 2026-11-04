@@ -97,9 +97,6 @@ function projectFields(projection: unknown): Document | undefined {
 async function getAccess(collection: string) {
   const id = await getSessionUserId();
   if (!id) return { allowed: false, id: null, section: "", profile: null as Document | null };
-  if (process.env.NODE_ENV !== "production" && id === "temporary-local-admin") {
-    return { allowed: true, id, section: "*", profile: null as Document | null };
-  }
   const db = await getDatabase();
   const profile = await db.collection("profiles").findOne({ id }, { projection: { role: 1, admin_sections: 1, managed_archdeaconry: 1 } });
   if (!profile) return { allowed: false, id, section: "", profile: null as Document | null };

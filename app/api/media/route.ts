@@ -3,6 +3,7 @@ import { GridFSBucket, ObjectId } from "mongodb";
 import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSessionUserId } from "@/lib/auth-session";
+import { uploadImageToCloudinary } from "@/lib/cloudinary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +11,13 @@ export const dynamic = "force-dynamic";
 const SECTION_ACCESS: Record<string, string[]> = {
   programmes: ["programmes"],
   store: ["store"],
-  pages: ["pages"], leadership: ["leadership"], announcements: ["announcements"],
-  carousel: ["carousel"], gallery: ["gallery"], blog: ["blog"], tournaments: ["tournaments"],
+  pages: ["pages"],
+  leadership: ["leadership"],
+  announcements: ["announcements"],
+  carousel: ["carousel"],
+  gallery: ["gallery"],
+  blog: ["blog"],
+  tournaments: ["tournaments"],
   archdeaconries: ["archdeaconries"],
 };
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
@@ -25,18 +31,34 @@ function validImage(type: string, bytes: Uint8Array) {
   return false;
 }
 
+function getCloudinaryFolder(section: string) {
+  const s = section.toLowerCase();
+  if (s === "store") return "dyo/store";
+  if (s === "pages") return "dyo/pages";
+  if (s === "leadership") return "dyo/leadership";
+  if (s === "announcements") return "dyo/announcements";
+  if (s === "carousel") return "dyo/carousel";
+  if (s === "gallery") return "dyo/gallery";
+  if (s === "blog") return "dyo/blog";
+  if (s === "tournaments") return "dyo/tournaments";
+  if (s === "archdeaconries") return "dyo/archdeaconries";
+  if (s === "programmes") return "dyo/programmes";
+  return "dyo/uploads";
+}
+
 async function canUpload(section: string) {
   const userId = await getSessionUserId();
   if (!userId) return false;
-  if (process.env.NODE_ENV !== "production" && userId === "temporary-local-admin") return true;
   const db = await getDatabase();
   const profile = await db.collection("profiles").findOne({ id: userId }, { projection: { role: 1, admin_sections: 1 } });
   if (!profile) return false;
-  return profile?.role === "super_admin" ||
+  return (
+    profile?.role === "super_admin" ||
     (profile?.role === "archdeaconry_admin" && section === "gallery") ||
     (profile?.role === "archdeaconry_admin" && section === "archdeaconries") ||
     (["admin", "archdeaconry_admin"].includes(profile?.role) &&
-      SECTION_ACCESS[section]?.some((item) => profile.admin_sections?.includes(item)) === true);
+      SECTION_ACCESS[section]?.some((item) => profile.admin_sections?.includes(item)) === true)
+  );
 }
 
 export async function POST(request: Request) {
@@ -47,9 +69,32 @@ export async function POST(request: Request) {
     if (!(file instanceof File) || !ACCEPTED_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_BYTES) {
       return NextResponse.json({ error: "Choose a valid image up to 8 MB." }, { status: 400 });
     }
-    if (!await canUpload(section)) return NextResponse.json({ error: "You cannot upload media for this section." }, { status: 403 });
+    if (!(await canUpload(section))) {
+      return NextResponse.json({ error: "You cannot upload media for this section." }, { status: 403 });
+    }
     const bytes = Buffer.from(await file.arrayBuffer());
-    if (!validImage(file.type, bytes.subarray(0, 16))) return NextResponse.json({ error: "The uploaded file is not a valid image." }, { status: 400 });
+    if (!validImage(file.type, bytes.subarray(0, 16))) {
+      return NextResponse.json({ error: "The uploaded file is not a valid image." }, { status: 400 });
+    }
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+    if (cloudName && apiKey && apiSecret) {
+      try {
+        const result = await uploadImageToCloudinary(bytes, {
+          folder: getCloudinaryFolder(section),
+          resourceType: "image",
+        });
+        if (result?.secure_url) {
+          return NextResponse.json({ url: result.secure_url });
+        }
+      } catch (error) {
+        console.error("Cloudinary upload failed, falling back to GridFS", error);
+      }
+    }
+
     const db = await getDatabase();
     const bucket = new GridFSBucket(db, { bucketName: "site_media" });
     const id = new ObjectId();

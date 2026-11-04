@@ -10,13 +10,17 @@ This frontend uses Next.js App Router with React and TypeScript.
 3. Start the development server with `npm run dev`.
 4. Build for production with `npm run build` and serve with `npm start`.
 
-## Temporary local admin
+## Seeding an admin account
 
-For local development only, the admin login accepts `admin@localhost.test` / `admin123`.
-This temporary super-admin bypass is disabled in production. Remove it from
-`app/api/auth/login/route.ts` and `app/api/auth/session/route.ts` after creating
-a real admin account in MongoDB. Admin data screens still require the MongoDB
-connection and `AUTH_SECRET` in `.env.local`.
+The temporary local admin bypass has been removed. Before deploying, create a
+real super-admin account in MongoDB (passwords are bcrypt-hashed, cost factor 12):
+
+```
+npx tsx scripts/seed-admin.ts --email admin@dyoyouth.org --password "a strong password"
+```
+
+After this runs you can log in through the normal login page. The script is
+safe to re-run: it refuses to overwrite an existing account.
 
 The admin sidebar now focuses on public website editors: programmes, store
 items, flyers and updates, the home slideshow, gallery, blog, leadership,
