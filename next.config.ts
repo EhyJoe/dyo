@@ -22,6 +22,14 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  webpack: (config) => {
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      fs: false,
+      encoding: false,
+    };
+    return config;
+  },
   async redirects() {
     return [
       { source: "/admin-login", destination: "/login", permanent: false },
