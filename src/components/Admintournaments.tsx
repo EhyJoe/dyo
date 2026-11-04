@@ -18,7 +18,7 @@ import TournamentBracket from "./TournamentBracket";
  */
 type Tournament = {
   id: string; name: string; slug: string; team_type: string;
-  status: string; starts_on: string | null; ends_on: string | null;
+  status: string; starts_on?: string | null; ends_on?: string | null;
   banner_url?: string | null; card_template_url?: string | null; format?: string;
 };
 type Team = { id: string; name: string; archdeaconry?: string | null; group_name: string | null; played: number; won: number; drawn: number;
@@ -43,7 +43,7 @@ export default function AdminTournaments() {
   const [savingTournament, setSavingTournament] = useState(false);
   const [tournamentMessage, setTournamentMessage] = useState("");
   const [uploadingImage, setUploadingImage] = useState<"banner_url" | "card_template_url" | null>(null);
-  const [tournamentForm, setTournamentForm] = useState({ name: "", status: "upcoming", starts_on: "", ends_on: "" });
+  const [tournamentForm, setTournamentForm] = useState({ name: "", status: "upcoming" });
 
   // new tournament form
   const [newName, setNewName] = useState("");
@@ -63,9 +63,7 @@ export default function AdminTournaments() {
     setTeamGroup("");
     setTournamentForm({
       name: selected.name,
-      status: selected.status || "upcoming",
-      starts_on: selected.starts_on?.slice(0, 10) ?? "",
-      ends_on: selected.ends_on?.slice(0, 10) ?? "",
+      status: ["upcoming", "ongoing", "closed"].includes(selected.status) ? selected.status : "upcoming",
     });
     setTournamentMessage("");
     void loadDetail();
@@ -124,8 +122,6 @@ export default function AdminTournaments() {
     const changes = {
       name: tournamentForm.name.trim(),
       status: tournamentForm.status,
-      starts_on: tournamentForm.starts_on || null,
-      ends_on: tournamentForm.ends_on || null,
     };
     try {
       const { error } = await mongo.from("tournaments").update(changes).eq("id", selected.id);
@@ -425,13 +421,16 @@ export default function AdminTournaments() {
       </button>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold">{selected.name}</h1>
-        <ThemedSelect className="border rounded px-3 py-2" value={tournamentForm.status}
-                onChange={(e) => setTournamentForm({ ...tournamentForm, status: e.target.value })}>
-          <option value="upcoming">Upcoming</option>
-          <option value="registration_open">Registration open</option>
-          <option value="ongoing">Ongoing</option>
-          <option value="completed">Completed</option>
-        </ThemedSelect>
+        <fieldset className="flex flex-wrap gap-2" aria-label="Tournament status">
+          {(["upcoming", "ongoing", "closed"] as const).map((status) => (
+            <label key={status} className={`flex cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm ${tournamentForm.status === status ? "border-[#800000] bg-red-50 font-semibold text-[#800000]" : "bg-white"}`}>
+              <input type="radio" name="tournament-status" value={status}
+                checked={tournamentForm.status === status}
+                onChange={() => setTournamentForm({ ...tournamentForm, status })} />
+              {status[0].toUpperCase() + status.slice(1)}
+            </label>
+          ))}
+        </fieldset>
       </div>
 
       <section className="mb-5 grid gap-3 rounded-lg border bg-white p-4 sm:grid-cols-2">
@@ -439,16 +438,6 @@ export default function AdminTournaments() {
           Tournament name
           <input className="rounded border px-3 py-2 font-normal" value={tournamentForm.name}
             onChange={(event) => setTournamentForm({ ...tournamentForm, name: event.target.value })} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Starts on
-          <input type="date" className="rounded border px-3 py-2 font-normal" value={tournamentForm.starts_on}
-            onChange={(event) => setTournamentForm({ ...tournamentForm, starts_on: event.target.value })} />
-        </label>
-        <label className="grid gap-1 text-sm font-medium">
-          Ends on
-          <input type="date" className="rounded border px-3 py-2 font-normal" value={tournamentForm.ends_on}
-            onChange={(event) => setTournamentForm({ ...tournamentForm, ends_on: event.target.value })} />
         </label>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <button onClick={saveTournamentChanges} disabled={savingTournament}

@@ -109,7 +109,9 @@ export default function TournamentsPage() {
                       : <div className="store-card-placeholder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4a4 4 0 0 1-8 0zM8 6H4v2a4 4 0 0 0 4 4m8-6h4v2a4 4 0 0 1-4 4m-4 0v5m-4 3h8m-6-3h4"/></svg></div>}
                   </div>
                   <h3>{t.name}</h3>
-                  <p className="store-price" style={{ textTransform: "capitalize" }}>{t.status.replace("_", " ")}</p>
+                  <p className={`tournament-status tournament-status--${t.status}`}>
+                    {(["upcoming", "ongoing", "closed"].includes(t.status) ? t.status : "upcoming").replace("_", " ")}
+                  </p>
                 </div>
               </Link>
             ))}
@@ -148,13 +150,9 @@ export default function TournamentsPage() {
         <header className="tournament-detail-head">
           <p className="store-eyebrow">Diocesan Youth Organization</p>
           <h1>{detail.name}</h1>
-          <span className={`tournament-status tournament-status--${detail.status}`}>{detail.status.replaceAll("_", " ")}</span>
-        {detail.status === "registration_open" && (
-          <Link to={`/tournaments/${slug}/register`} className="product-add"
-                style={{ display: "inline-block", marginBottom: 20 }}>
-            Register for this tournament
-          </Link>
-        )}
+          <span className={`tournament-status tournament-status--${detail.status}`}>
+            {(["upcoming", "ongoing", "closed"].includes(detail.status) ? detail.status : "upcoming").replaceAll("_", " ")}
+          </span>
         </header>
 
 
