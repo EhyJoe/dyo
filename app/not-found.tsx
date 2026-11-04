@@ -2,6 +2,8 @@ import Link from "next/link";
 import Navbar from "../src/components/Navbar";
 import SiteFooter from "../src/components/Sitefooter";
 
+export const dynamic = "force-dynamic";
+
 export default function NotFound() {
   return (
     <div className="public-widget-page">
