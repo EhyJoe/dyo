@@ -13,7 +13,9 @@ export default function Providers({children}:{children:React.ReactNode}){
           <NavigationLoader/>
         </Suspense>
         <Luckydrawwidget/>
-        <PageTracker/>
+        <Suspense fallback={null}>
+          <PageTracker/>
+        </Suspense>
         {children}
       </CartProvider>
     </AuthProvider>
